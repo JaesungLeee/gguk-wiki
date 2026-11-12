@@ -127,10 +127,10 @@ CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 �
 
 - 결정 문서의 필수 필드와 `status`·`durability` 값, `platforms`가 1개 이상 있는지. `platforms`가 비면 플랫폼별로 결정을 거르는 기능([MCP 서버](backlog/mcp-server.md), [훅](backlog/hooks.md))에서 그 결정이 어디에도 나오지 않는다
 - 결정 파일 이름의 날짜가 `decided_at`과 같은지. 다르면 `log.md`의 순서와 파일 이름이 다른 날짜를 가리킨다
-- 결정 문서의 `source`, `supersedes`, `superseded_by`가 가리키는 파일이 실제로 있는지
-- 대체 표시가 짝이 맞는지: `superseded`와 `superseded_by`가 함께 있는지, 새 결정의 `supersedes`와 이전 결정의 `superseded_by`가 서로를 가리키는지. 반만 처리하면 옛 결정이 도메인 페이지에 유효한 결정으로 남는다
+- 결정 문서의 `source`, `supersedes`, `superseded_by`가 가리키는 파일이 실제로 있는지, `supersedes`·`superseded_by`는 `wiki/decisions/` 아래 결정 문서를 가리키는지. 다른 파일을 가리키면 대신할 결정 없이 결정이 도메인 페이지에서 빠진다
+- 대체 표시가 짝이 맞는지: `superseded`와 `superseded_by`가 함께 있는지, 새 결정의 `supersedes`와 이전 결정의 `superseded_by`가 서로를 가리키는지. 반만 처리하면 옛 결정이 도메인 페이지에 유효한 결정으로 남는다. 대체 관계가 순환하지 않는지. 순환하면 짝이 맞아도 사슬에 `decided` 결정이 없어 그 주제가 도메인 페이지에서 사라진다
 - 액션 아이템 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지
-- 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는지, `resolved`가 아니면 `resolved_by`가 없는지
+- 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는 결정 문서인지, `resolved`가 아니면 `resolved_by`가 없는지
 - 액션 아이템·미결 파일의 경로가 원본의 `raw/` 아래 경로를 따르는지. 어긋나면 한 원본의 항목이 여러 파일로 흩어진다
 - `domains` 값이 `domains.yml`에 있는지, 결정과 미결 항목에 `domains`가 1개 이상 있는지
 - `domains.yml`의 이름이 영어 소문자와 하이픈으로 되어 있고 겹치지 않는지
