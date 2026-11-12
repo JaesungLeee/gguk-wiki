@@ -154,7 +154,7 @@ CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 �
   - PR을 거쳐야 merge할 수 있다. 승인 수는 0명이다([승인 구조](#승인-구조-ownership)).
   - 형식 검사가 통과해야 merge할 수 있다.
   - force push와 브랜치 삭제를 막는다.
-- ruleset은 두 번에 나눠 건다([다음 단계](README.md#로드맵)). 형식 검사 필수와 GitHub App 우회는 형식 검사 CI가 merge된 뒤에 추가한다. 필수 검사가 보고되지 않으면 PR이 "Waiting for status to be reported" 상태로 막히기 때문이다.
+- ruleset은 형식 검사 CI와 GitHub App이 준비된 뒤 한 번에 건다([다음 단계](README.md#로드맵)). 필수 검사를 보고하는 CI가 없는 상태에서 걸면 PR이 "Waiting for status to be reported" 상태로 막히기 때문이다.
 - PR 없이 main에 커밋하는 곳은 CI 하나뿐이다. CI는 GitHub App 토큰으로 생성 파일을 다시 만들어 커밋하고, 이 App만 ruleset 우회 대상으로 둔다. ruleset 우회 대상에는 GitHub App을 넣을 수 있다.
 - App secrets가 없으면 기본 `GITHUB_TOKEN`으로 커밋한다. ruleset이 없는 동안(1.3 전)에는 기본 토큰으로도 main에 커밋할 수 있어서, App을 만들기 전에도 생성 파일이 갱신된다. ruleset을 건 뒤에는 기본 토큰이 우회 대상이 아니므로 App이 있어야 한다.
 - ruleset은 우회 대상이 고칠 경로를 제한하지 못한다. 생성 파일 밖을 고치지 않는 것은 CI 코드가 지킨다.

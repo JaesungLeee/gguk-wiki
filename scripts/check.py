@@ -26,7 +26,7 @@ DURABILITY = ("permanent", "temporal")
 PLATFORMS = ("server", "android", "ios", "design")
 
 ACTION_REQUIRED = ("source", "items")
-ACTION_ITEM_REQUIRED = ("task", "assignee", "status")
+ACTION_ITEM_REQUIRED = ("task", "status")
 ACTION_STATUS = ("open", "done", "dropped")
 
 OPEN_QUESTION_REQUIRED = ("source", "items")

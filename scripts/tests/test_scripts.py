@@ -277,10 +277,15 @@ class CheckTest(RepoTestCase):
     def test_action_item_errors(self):
         self.repo.doc("wiki/action-items/specs/x.md", {
             "source": SOURCE,
-            "items": [{"task": "t", "status": "closed", "due": "내일"}],
+            "items": [
+                {"task": "t", "status": "closed", "due": "내일"},
+                {"task": "t", "assignee": "", "status": "open"},
+            ],
         })
         errors = self.repo.errors()
-        self.assertHasError(errors, "items[1]: 필수 필드 `assignee`")
+        # 담당자는 선택 필드다. 없으면 통과하고, 줄만 있고 값이 비면 막는다
+        self.assertFalse(any("`assignee`" in e for e in errors if "items[1]" in e))
+        self.assertHasError(errors, "items[2]: `assignee` 값이 비어 있다")
         self.assertHasError(errors, "items[1]: `status` 값 `closed`")
         self.assertHasError(errors, "items[1]: `due`는 YYYY-MM-DD")
 
@@ -326,7 +331,7 @@ class GenerateTest(RepoTestCase):
              "resolved_by": "wiki/decisions/2026-11-06-덱-장수.md"},
         ]})
         self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {"source": SOURCE, "items": [
-            {"task": "기한 없음", "assignee": "가", "status": "open"},
+            {"task": "기한 없음", "status": "open"},
             {"task": "늦은 일", "assignee": "나", "status": "open", "due": "2026-12-01"},
             {"task": "이른 일", "assignee": "다", "status": "open", "due": "2026-11-20"},
             {"task": "끝난 일", "assignee": "라", "status": "done"},
@@ -367,6 +372,7 @@ class GenerateTest(RepoTestCase):
         tasks = re.findall(r"^\| [^|]+ \| ([^|]+) \|", page, re.M)[2:]  # 머리글과 구분선 제외
         self.assertEqual([t.strip() for t in tasks], ["이른 일", "늦은 일", "기한 없음"])
         self.assertNotIn("끝난 일", page)
+        self.assertIn("| — | 기한 없음 | — |", page)
 
     def test_write_removes_stale_domain_page(self):
         self.repo.write("wiki/domains/payment.md", "옛 도메인\n")
