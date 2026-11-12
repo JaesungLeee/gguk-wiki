@@ -240,6 +240,34 @@ class CheckTest(RepoTestCase):
         self.repo.doc(new, decision(supersedes=old))
         self.assertEqual(self.repo.errors(), [])
 
+    def test_supersede_cycle(self):
+        a = "wiki/decisions/2026-11-06-가.md"
+        b = "wiki/decisions/2026-11-06-나.md"
+        c = "wiki/decisions/2026-11-06-다.md"
+        # 짝은 모두 맞지만 가 → 나 → 다 → 가로 돌아 decided 결정이 없다
+        self.repo.doc(a, decision(status="superseded", supersedes=c, superseded_by=b))
+        self.repo.doc(b, decision(status="superseded", supersedes=a, superseded_by=c))
+        self.repo.doc(c, decision(status="superseded", supersedes=b, superseded_by=a))
+        self.repo.doc("wiki/decisions/2026-11-06-자기.md", decision(
+            status="superseded",
+            supersedes="wiki/decisions/2026-11-06-자기.md",
+            superseded_by="wiki/decisions/2026-11-06-자기.md",
+        ))
+        errors = self.repo.errors()
+        self.assertEqual(len(errors), 2, errors)
+        self.assertHasError(errors, f"{a}: 대체 관계가 순환한다: {a} → {b} → {c} → {a}")
+        self.assertHasError(errors, "자기.md: 대체 관계가 순환한다")
+
+    def test_links_point_to_decisions(self):
+        self.repo.doc("wiki/decisions/2026-11-06-원본-대체.md", decision(status="superseded", superseded_by=SOURCE))
+        self.repo.doc("wiki/open-questions/specs/2026-11-06-mvp-prd.md", {
+            "source": SOURCE,
+            "items": [{"question": "q", "domains": ["deck"], "status": "resolved", "resolved_by": SOURCE}],
+        })
+        errors = self.repo.errors()
+        self.assertHasError(errors, "원본-대체.md: `superseded_by`는 `wiki/decisions/` 아래 결정 문서")
+        self.assertHasError(errors, "items[1]: `resolved_by`는 `wiki/decisions/` 아래 결정 문서")
+
     def test_path_mirrors_source(self):
         self.repo.doc("wiki/open-questions/meetings/다른-이름.md", {
             "source": SOURCE,

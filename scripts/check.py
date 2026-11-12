@@ -70,6 +70,15 @@ class Checker:
         if not isinstance(value, str) or nfc(value) not in self.files:
             self.error(where, f"`{key}`가 가리키는 파일 `{value}`가 없다")
 
+    def decision_path(self, where: str, key: str, value) -> None:
+        """대체·해소 관계는 결정 문서만 가리킨다. 다른 파일을 가리키면 대신할 결정 없이 결정·미결이 도메인 페이지에서 빠진다."""
+        if isinstance(value, str) and not (
+            nfc(value).startswith(wikilib.DECISIONS_DIR + "/") and value.endswith(".md")
+        ):
+            self.error(where, f"`{key}`는 `{wikilib.DECISIONS_DIR}/` 아래 결정 문서를 가리켜야 한다")
+            return
+        self.path_exists(where, key, value)
+
     def domains(self, where: str, value, required: bool) -> None:
         if not isinstance(value, list):
             self.error(where, "`domains`는 목록이어야 한다")
@@ -135,7 +144,7 @@ class Checker:
             self.one_of(rel, "durability", data["durability"], DURABILITY)
         for key in DECISION_OPTIONAL:
             if self.present(rel, data, key):
-                self.path_exists(rel, key, data[key])
+                self.decision_path(rel, key, data[key])
 
     def check_supersede_links(self) -> None:
         """대체 표시가 양쪽에서 짝이 맞는지 본다. 반만 처리하면 옛 결정이 유효한 것으로 남는다."""
@@ -153,6 +162,24 @@ class Checker:
             if isinstance(old, str) and nfc(old) in self.decisions:
                 if nfc(str(self.decisions[nfc(old)].get("superseded_by") or "")) != rel:
                     self.error(rel, f"이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
+
+    def check_supersede_cycles(self) -> None:
+        """대체가 돌면 짝이 맞아도 사슬에 `decided` 결정이 없어 그 주제가 도메인 페이지에서 사라진다."""
+        reported: set[str] = set()
+        for start in self.decisions:
+            chain: list[str] = []
+            rel = start
+            while rel in self.decisions and rel not in chain:
+                chain.append(rel)
+                new = self.decisions[rel].get("superseded_by")
+                rel = nfc(new) if isinstance(new, str) else None
+            if rel not in chain or rel in reported:
+                continue
+            cycle = chain[chain.index(rel):]
+            reported.update(cycle)
+            first = cycle.index(min(cycle))
+            cycle = cycle[first:] + cycle[:first]
+            self.error(cycle[0], "대체 관계가 순환한다: " + " → ".join(cycle + [cycle[0]]))
 
     def items(self, rel: str, data: dict) -> list[tuple[str, dict]]:
         items = data.get("items")
@@ -207,7 +234,7 @@ class Checker:
                 if "resolved_by" not in item:
                     self.error(where, "`resolved`이면 `resolved_by`가 있어야 한다")
                 elif self.present(where, item, "resolved_by"):
-                    self.path_exists(where, "resolved_by", item["resolved_by"])
+                    self.decision_path(where, "resolved_by", item["resolved_by"])
             elif "resolved_by" in item:
                 self.error(where, "`resolved_by`는 `resolved`일 때만 쓴다")
 
@@ -225,6 +252,7 @@ class Checker:
         for rel, path in wikilib.list_docs(self.root, wikilib.DECISIONS_DIR):
             self.check_decision(rel, path)
         self.check_supersede_links()
+        self.check_supersede_cycles()
         for rel, path in wikilib.list_docs(self.root, wikilib.ACTION_ITEMS_DIR):
             self.check_action_items(rel, path)
         for rel, path in wikilib.list_docs(self.root, wikilib.OPEN_QUESTIONS_DIR):
