@@ -125,11 +125,15 @@ MVP 개발 중에 쌓인 자료를 한 번 옮긴다. PRD·스펙으로 현재 �
 
 CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 규칙](#main-보호-규칙)).
 
-- 결정 문서의 필수 필드와 `status`·`durability` 값
+- 결정 문서의 필수 필드와 `status`·`durability` 값, `platforms`가 1개 이상 있는지. `platforms`가 비면 플랫폼별로 결정을 거르는 기능([MCP 서버](backlog/mcp-server.md), [훅](backlog/hooks.md))에서 그 결정이 어디에도 나오지 않는다
+- 결정 파일 이름의 날짜가 `decided_at`과 같은지. 다르면 `log.md`의 순서와 파일 이름이 다른 날짜를 가리킨다
 - 결정 문서의 `source`, `supersedes`, `superseded_by`가 가리키는 파일이 실제로 있는지
+- 대체 표시가 짝이 맞는지: `superseded`와 `superseded_by`가 함께 있는지, 새 결정의 `supersedes`와 이전 결정의 `superseded_by`가 서로를 가리키는지. 반만 처리하면 옛 결정이 도메인 페이지에 유효한 결정으로 남는다
 - 액션 아이템 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지
-- 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는지
+- 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는지, `resolved`가 아니면 `resolved_by`가 없는지
+- 액션 아이템·미결 파일의 경로가 원본의 `raw/` 아래 경로를 따르는지. 어긋나면 한 원본의 항목이 여러 파일로 흩어진다
 - `domains` 값이 `domains.yml`에 있는지, 결정과 미결 항목에 `domains`가 1개 이상 있는지
+- `domains.yml`의 이름이 영어 소문자와 하이픈으로 되어 있고 겹치지 않는지
 - `raw/`의 기존 파일을 고치거나 지우지 않았는지
 - 생성 파일(`wiki/domains/`, `index.md`, `log.md`, `action-items.md`)을 추가하거나 고치지 않았는지. PR에서 고친 내용은 merge 뒤 CI가 덮어써 조용히 사라지기 때문이다. 삭제는 허용한다. 생성 파일을 없앨 때 남은 파일을 지울 수 있어야 하고, 잘못 지워도 CI가 다시 만든다
 

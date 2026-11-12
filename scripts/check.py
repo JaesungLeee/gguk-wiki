@@ -7,12 +7,17 @@
 from __future__ import annotations
 
 import argparse
+import posixpath
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 import wikilib
 from wikilib import FormatError, nfc
+
+DOMAIN_NAME_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
+DATED_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-.+\.md$")
 
 DECISION_REQUIRED = ("title", "status", "decided_at", "domains", "platforms", "source", "durability")
 DECISION_OPTIONAL = ("supersedes", "superseded_by")
@@ -35,6 +40,8 @@ class Checker:
         self.errors: list[str] = []
         self.files = wikilib.repo_files(root)
         self.domain_names = {d.name for d in wikilib.load_domains(root)}
+        # 결정 경로 → frontmatter. 대체 관계를 양쪽에서 맞춰 볼 때 쓴다.
+        self.decisions: dict[str, dict] = {}
 
     def error(self, where: str, message: str) -> None:
         self.errors.append(f"{where}: {message}")
@@ -73,6 +80,15 @@ class Checker:
             if name not in self.domain_names:
                 self.error(where, f"도메인 `{name}`이 domains.yml에 없다")
 
+    def mirrors_source(self, rel: str, data: dict, subdir: str) -> None:
+        """액션 아이템·미결 파일의 경로가 원본의 raw/ 아래 경로를 따르는지 본다."""
+        source = data.get("source")
+        if not isinstance(source, str) or not nfc(source).startswith("raw/"):
+            return
+        expected = posixpath.join(subdir, nfc(source)[len("raw/"):])
+        if rel != expected:
+            self.error(rel, f"경로는 원본 경로를 따라 `{expected}`여야 한다")
+
     def load(self, rel: str, path: Path) -> dict | None:
         try:
             return wikilib.parse_frontmatter(path)
@@ -86,13 +102,22 @@ class Checker:
         data = self.load(rel, path)
         if data is None:
             return
+        self.decisions[rel] = data
         self.require(rel, data, DECISION_REQUIRED)
         if self.present(rel, data, "title") and not isinstance(data["title"], str):
             self.error(rel, "`title`은 문자열이어야 한다")
         if self.present(rel, data, "status"):
             self.one_of(rel, "status", data["status"], DECISION_STATUS)
-        if self.present(rel, data, "decided_at") and wikilib.date_str(data["decided_at"]) is None:
-            self.error(rel, "`decided_at`은 YYYY-MM-DD 날짜여야 한다")
+        if self.present(rel, data, "decided_at"):
+            decided_at = wikilib.date_str(data["decided_at"])
+            if decided_at is None:
+                self.error(rel, "`decided_at`은 YYYY-MM-DD 날짜여야 한다")
+            else:
+                m = DATED_FILE_RE.match(posixpath.basename(rel))
+                if not m:
+                    self.error(rel, "파일 이름은 `YYYY-MM-DD-제목.md`여야 한다")
+                elif m.group(1) != decided_at:
+                    self.error(rel, f"파일 이름의 날짜 {m.group(1)}가 `decided_at` {decided_at}와 다르다")
         if "domains" in data:
             self.domains(rel, data["domains"], required=True)
         if "platforms" in data:
@@ -100,6 +125,8 @@ class Checker:
             if not isinstance(platforms, list):
                 self.error(rel, "`platforms`는 목록이어야 한다")
             else:
+                if not platforms:
+                    self.error(rel, "`platforms`가 1개 이상 있어야 한다. 하지 않기로 한 결정은 해당 직무를 모두 적는다")
                 for p in platforms:
                     self.one_of(rel, "platforms", p, PLATFORMS)
         if self.present(rel, data, "source"):
@@ -109,6 +136,23 @@ class Checker:
         for key in DECISION_OPTIONAL:
             if self.present(rel, data, key):
                 self.path_exists(rel, key, data[key])
+
+    def check_supersede_links(self) -> None:
+        """대체 표시가 양쪽에서 짝이 맞는지 본다. 반만 처리하면 옛 결정이 유효한 것으로 남는다."""
+        for rel, data in self.decisions.items():
+            status = data.get("status")
+            new = data.get("superseded_by")
+            old = data.get("supersedes")
+            if status == "superseded" and not new:
+                self.error(rel, "`superseded`이면 `superseded_by`가 있어야 한다")
+            if new and status != "superseded":
+                self.error(rel, "`superseded_by`가 있으면 `status`가 `superseded`여야 한다")
+            if isinstance(new, str) and nfc(new) in self.decisions:
+                if nfc(str(self.decisions[nfc(new)].get("supersedes") or "")) != rel:
+                    self.error(rel, f"이 결정을 대체한 `{new}`의 `supersedes`가 이 결정을 가리키지 않는다")
+            if isinstance(old, str) and nfc(old) in self.decisions:
+                if nfc(str(self.decisions[nfc(old)].get("superseded_by") or "")) != rel:
+                    self.error(rel, f"이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
 
     def items(self, rel: str, data: dict) -> list[tuple[str, dict]]:
         items = data.get("items")
@@ -132,6 +176,7 @@ class Checker:
         self.require(rel, data, ACTION_REQUIRED)
         if self.present(rel, data, "source"):
             self.path_exists(rel, "source", data["source"])
+            self.mirrors_source(rel, data, wikilib.ACTION_ITEMS_DIR)
         if "domains" in data:
             self.domains(rel, data["domains"], required=False)
         for where, item in self.items(rel, data):
@@ -150,6 +195,7 @@ class Checker:
         self.require(rel, data, OPEN_QUESTION_REQUIRED)
         if self.present(rel, data, "source"):
             self.path_exists(rel, "source", data["source"])
+            self.mirrors_source(rel, data, wikilib.OPEN_QUESTIONS_DIR)
         for where, item in self.items(rel, data):
             self.require(where, item, OPEN_QUESTION_ITEM_REQUIRED)
             self.present(where, item, "question")
@@ -162,10 +208,23 @@ class Checker:
                     self.error(where, "`resolved`이면 `resolved_by`가 있어야 한다")
                 elif self.present(where, item, "resolved_by"):
                     self.path_exists(where, "resolved_by", item["resolved_by"])
+            elif "resolved_by" in item:
+                self.error(where, "`resolved_by`는 `resolved`일 때만 쓴다")
+
+    def check_domains_file(self) -> None:
+        seen = set()
+        for domain in wikilib.load_domains(self.root):
+            if not DOMAIN_NAME_RE.match(domain.name):
+                self.error("domains.yml", f"도메인 이름 `{domain.name}`은 영어 소문자와 하이픈으로 쓴다")
+            if domain.name in seen:
+                self.error("domains.yml", f"도메인 `{domain.name}`이 두 번 있다")
+            seen.add(domain.name)
 
     def check_docs(self) -> None:
+        self.check_domains_file()
         for rel, path in wikilib.list_docs(self.root, wikilib.DECISIONS_DIR):
             self.check_decision(rel, path)
+        self.check_supersede_links()
         for rel, path in wikilib.list_docs(self.root, wikilib.ACTION_ITEMS_DIR):
             self.check_action_items(rel, path)
         for rel, path in wikilib.list_docs(self.root, wikilib.OPEN_QUESTIONS_DIR):
