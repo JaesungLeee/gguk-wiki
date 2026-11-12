@@ -178,7 +178,7 @@ class UnicodeTest(RepoTestCase):
     def test_nfd_file_with_nfc_source(self):
         nfc_source = "raw/meetings/2026-11-10-결제-정책.md"
         self.repo.write(unicodedata.normalize("NFD", nfc_source), "# 회의록\n")
-        self.repo.doc("wiki/decisions/2026-11-10-환불.md", decision(source=nfc_source))
+        self.repo.doc("wiki/decisions/2026-11-10-환불.md", decision(source=nfc_source, decided_at="2026-11-10"))
         self.assertEqual(self.repo.errors(), [])
 
     def test_nfd_decision_file(self):
@@ -210,6 +210,55 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "g.md: `platforms` 값 `web`")
         self.assertHasError(errors, "h.md: frontmatter가 없다")
 
+    def test_decision_file_name_and_platforms(self):
+        self.repo.doc("wiki/decisions/2026-11-07-날짜-다름.md", decision())
+        self.repo.doc("wiki/decisions/날짜-없음.md", decision())
+        self.repo.doc("wiki/decisions/2026-11-06-플랫폼-없음.md", decision(platforms=[]))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "2026-11-07-날짜-다름.md: 파일 이름의 날짜 2026-11-07가 `decided_at` 2026-11-06와 다르다")
+        self.assertHasError(errors, "날짜-없음.md: 파일 이름은 `YYYY-MM-DD-제목.md`")
+        self.assertHasError(errors, "2026-11-06-플랫폼-없음.md: `platforms`가 1개 이상")
+
+    def test_supersede_links(self):
+        old = "wiki/decisions/2026-10-01-덱.md"
+        new = "wiki/decisions/2026-11-06-덱.md"
+        # 새 결정만 supersedes를 달고 옛 결정은 그대로 둔, 반만 처리한 대체
+        self.repo.doc(old, decision(decided_at="2026-10-01"))
+        self.repo.doc(new, decision(supersedes=old))
+        self.repo.doc("wiki/decisions/2026-11-06-상태만.md", decision(status="superseded"))
+        self.repo.doc("wiki/decisions/2026-11-06-포인터만.md", decision(superseded_by=new))
+        errors = self.repo.errors()
+        self.assertHasError(errors, f"{new}: 이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
+        self.assertHasError(errors, "상태만.md: `superseded`이면 `superseded_by`가 있어야 한다")
+        self.assertHasError(errors, "포인터만.md: `superseded_by`가 있으면 `status`가 `superseded`여야 한다")
+        self.assertHasError(errors, f"포인터만.md: 이 결정을 대체한 `{new}`의 `supersedes`가 이 결정을 가리키지 않는다")
+
+    def test_supersede_links_complete(self):
+        old = "wiki/decisions/2026-10-01-덱.md"
+        new = "wiki/decisions/2026-11-06-덱.md"
+        self.repo.doc(old, decision(decided_at="2026-10-01", status="superseded", superseded_by=new))
+        self.repo.doc(new, decision(supersedes=old))
+        self.assertEqual(self.repo.errors(), [])
+
+    def test_path_mirrors_source(self):
+        self.repo.doc("wiki/open-questions/meetings/다른-이름.md", {
+            "source": SOURCE,
+            "items": [{"question": "q", "domains": ["deck"], "status": "open", "resolved_by": SOURCE}],
+        })
+        self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {
+            "source": SOURCE, "items": [{"task": "t", "assignee": "가", "status": "open"}],
+        })
+        errors = self.repo.errors()
+        self.assertHasError(errors, "다른-이름.md: 경로는 원본 경로를 따라 `wiki/open-questions/specs/2026-11-06-mvp-prd.md`여야 한다")
+        self.assertHasError(errors, "items[1]: `resolved_by`는 `resolved`일 때만 쓴다")
+        self.assertFalse(any("wiki/action-items/" in e for e in errors), errors)
+
+    def test_domains_file(self):
+        self.repo.write("domains.yml", "- name: room\n  scope: 방\n- name: Push_Notification\n  scope: 푸시\n- name: room\n  scope: 중복\n")
+        errors = self.repo.errors()
+        self.assertHasError(errors, "domains.yml: 도메인 이름 `Push_Notification`은 영어 소문자와 하이픈으로 쓴다")
+        self.assertHasError(errors, "domains.yml: 도메인 `room`이 두 번 있다")
+
     def test_open_question_errors(self):
         self.repo.doc("wiki/open-questions/specs/x.md", {
             "source": SOURCE,
@@ -228,10 +277,15 @@ class CheckTest(RepoTestCase):
     def test_action_item_errors(self):
         self.repo.doc("wiki/action-items/specs/x.md", {
             "source": SOURCE,
-            "items": [{"task": "t", "status": "closed", "due": "내일"}],
+            "items": [
+                {"task": "t", "status": "closed", "due": "내일"},
+                {"task": "t", "assignee": "", "status": "open"},
+            ],
         })
         errors = self.repo.errors()
-        self.assertHasError(errors, "items[1]: 필수 필드 `assignee`")
+        # 담당자는 선택 필드다. 없으면 통과하고, 줄만 있고 값이 비면 막는다
+        self.assertFalse(any("`assignee`" in e for e in errors if "items[1]" in e))
+        self.assertHasError(errors, "items[2]: `assignee` 값이 비어 있다")
         self.assertHasError(errors, "items[1]: `status` 값 `closed`")
         self.assertHasError(errors, "items[1]: `due`는 YYYY-MM-DD")
 
@@ -277,7 +331,7 @@ class GenerateTest(RepoTestCase):
              "resolved_by": "wiki/decisions/2026-11-06-덱-장수.md"},
         ]})
         self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {"source": SOURCE, "items": [
-            {"task": "기한 없음", "assignee": "가", "status": "open"},
+            {"task": "기한 없음", "status": "open"},
             {"task": "늦은 일", "assignee": "나", "status": "open", "due": "2026-12-01"},
             {"task": "이른 일", "assignee": "다", "status": "open", "due": "2026-11-20"},
             {"task": "끝난 일", "assignee": "라", "status": "done"},
@@ -318,6 +372,7 @@ class GenerateTest(RepoTestCase):
         tasks = re.findall(r"^\| [^|]+ \| ([^|]+) \|", page, re.M)[2:]  # 머리글과 구분선 제외
         self.assertEqual([t.strip() for t in tasks], ["이른 일", "늦은 일", "기한 없음"])
         self.assertNotIn("끝난 일", page)
+        self.assertIn("| — | 기한 없음 | — |", page)
 
     def test_write_removes_stale_domain_page(self):
         self.repo.write("wiki/domains/payment.md", "옛 도메인\n")

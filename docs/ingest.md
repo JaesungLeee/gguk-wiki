@@ -125,11 +125,15 @@ MVP 개발 중에 쌓인 자료를 한 번 옮긴다. PRD·스펙으로 현재 �
 
 CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 규칙](#main-보호-규칙)).
 
-- 결정 문서의 필수 필드와 `status`·`durability` 값
+- 결정 문서의 필수 필드와 `status`·`durability` 값, `platforms`가 1개 이상 있는지. `platforms`가 비면 플랫폼별로 결정을 거르는 기능([MCP 서버](backlog/mcp-server.md), [훅](backlog/hooks.md))에서 그 결정이 어디에도 나오지 않는다
+- 결정 파일 이름의 날짜가 `decided_at`과 같은지. 다르면 `log.md`의 순서와 파일 이름이 다른 날짜를 가리킨다
 - 결정 문서의 `source`, `supersedes`, `superseded_by`가 가리키는 파일이 실제로 있는지
+- 대체 표시가 짝이 맞는지: `superseded`와 `superseded_by`가 함께 있는지, 새 결정의 `supersedes`와 이전 결정의 `superseded_by`가 서로를 가리키는지. 반만 처리하면 옛 결정이 도메인 페이지에 유효한 결정으로 남는다
 - 액션 아이템 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지
-- 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는지
+- 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는지, `resolved`가 아니면 `resolved_by`가 없는지
+- 액션 아이템·미결 파일의 경로가 원본의 `raw/` 아래 경로를 따르는지. 어긋나면 한 원본의 항목이 여러 파일로 흩어진다
 - `domains` 값이 `domains.yml`에 있는지, 결정과 미결 항목에 `domains`가 1개 이상 있는지
+- `domains.yml`의 이름이 영어 소문자와 하이픈으로 되어 있고 겹치지 않는지
 - `raw/`의 기존 파일을 고치거나 지우지 않았는지
 - 생성 파일(`wiki/domains/`, `index.md`, `log.md`, `action-items.md`)을 추가하거나 고치지 않았는지. PR에서 고친 내용은 merge 뒤 CI가 덮어써 조용히 사라지기 때문이다. 삭제는 허용한다. 생성 파일을 없앨 때 남은 파일을 지울 수 있어야 하고, 잘못 지워도 CI가 다시 만든다
 
@@ -150,15 +154,16 @@ CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 �
   - PR을 거쳐야 merge할 수 있다. 승인 수는 0명이다([승인 구조](#승인-구조-ownership)).
   - 형식 검사가 통과해야 merge할 수 있다.
   - force push와 브랜치 삭제를 막는다.
-- ruleset은 두 번에 나눠 건다([다음 단계](README.md#로드맵)). 형식 검사 필수와 GitHub App 우회는 형식 검사 CI가 merge된 뒤에 추가한다. 필수 검사가 보고되지 않으면 PR이 "Waiting for status to be reported" 상태로 막히기 때문이다.
+- ruleset은 형식 검사 CI와 GitHub App이 준비된 뒤 한 번에 건다([다음 단계](README.md#로드맵)). 필수 검사를 보고하는 CI가 없는 상태에서 걸면 PR이 "Waiting for status to be reported" 상태로 막히기 때문이다.
 - PR 없이 main에 커밋하는 곳은 CI 하나뿐이다. CI는 GitHub App 토큰으로 생성 파일을 다시 만들어 커밋하고, 이 App만 ruleset 우회 대상으로 둔다. ruleset 우회 대상에는 GitHub App을 넣을 수 있다.
+- App secrets가 없으면 기본 `GITHUB_TOKEN`으로 커밋한다. ruleset이 없는 동안(1.3 전)에는 기본 토큰으로도 main에 커밋할 수 있어서, App을 만들기 전에도 생성 파일이 갱신된다. ruleset을 건 뒤에는 기본 토큰이 우회 대상이 아니므로 App이 있어야 한다.
 - ruleset은 우회 대상이 고칠 경로를 제한하지 못한다. 생성 파일 밖을 고치지 않는 것은 CI 코드가 지킨다.
-- App 토큰으로 만든 커밋은 워크플로를 다시 실행한다. 재생성 결과가 바뀌지 않으면 커밋하지 않으므로 한 번에 멈춘다.
+- App 토큰으로 만든 커밋은 워크플로를 다시 실행한다. 재생성 결과가 바뀌지 않으면 커밋하지 않으므로 한 번에 멈춘다. 기본 토큰으로 만든 커밋은 워크플로를 다시 실행하지 않는다.
 
 **GitHub App과 비밀값**
 
 | 항목 | 내용 |
 | --- | --- |
 | App 권한 | `gguk-wiki` Contents: Write |
-| 비밀값 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`를 GitHub Actions secrets에 둔다 |
+| 비밀값 | `WIKI_APP_ID`, `WIKI_APP_PRIVATE_KEY`를 GitHub Actions secrets에 둔다. GitHub는 `GITHUB_`로 시작하는 secret 이름을 허용하지 않는다([GitHub 문서](https://docs.github.com/en/actions/reference/security/secrets)) |
 | 노출 방지 | 인덱스 재생성 워크플로는 main push에서만 실행한다. 외부 fork PR에는 secrets가 전달되지 않으므로, PR 형식 검사는 secrets 없이 돈다 |

@@ -41,7 +41,7 @@ class OpenQuestion:
 @dataclass(frozen=True)
 class ActionItem:
     task: str
-    assignee: str
+    assignee: str | None
     due: str | None
     source: str
 
@@ -93,7 +93,8 @@ def load_action_items(root: Path) -> list[ActionItem]:
         for item in data["items"]:
             if item["status"] == "open":
                 due = wikilib.date_str(item["due"]) if "due" in item else None
-                items.append(ActionItem(str(item["task"]), str(item["assignee"]), due, data["source"]))
+                assignee = str(item["assignee"]) if "assignee" in item else None
+                items.append(ActionItem(str(item["task"]), assignee, due, data["source"]))
     # 기한순, 기한 없는 항목은 맨 뒤. 정렬이 안정적이므로 같은 기한은 원본 경로순을 유지한다.
     items.sort(key=lambda a: (a.due is None, a.due or ""))
     return items
@@ -153,7 +154,7 @@ def action_items_page(items: list[ActionItem]) -> str:
         return "\n".join(lines) + "\n"
     lines += ["| 기한 | 할 일 | 담당자 | 원본 |", "| --- | --- | --- | --- |"]
     for a in items:
-        lines.append(f"| {a.due or '—'} | {cell(a.task)} | {cell(a.assignee)} | {link(a.source, a.source, 'wiki')} |")
+        lines.append(f"| {a.due or '—'} | {cell(a.task)} | {cell(a.assignee) if a.assignee else '—'} | {link(a.source, a.source, 'wiki')} |")
     return "\n".join(lines) + "\n"
 
 

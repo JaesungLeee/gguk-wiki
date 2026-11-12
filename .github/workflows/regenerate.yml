@@ -27,17 +27,17 @@ jobs:
       - name: App 토큰 발급
         id: app-token
         if: env.HAS_APP == 'true'
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.WIKI_APP_ID }}
           private-key: ${{ secrets.WIKI_APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           token: ${{ steps.app-token.outputs.token || github.token }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
