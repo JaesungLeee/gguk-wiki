@@ -60,15 +60,9 @@ description: GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때
 
 ## 작업 공간
 
-ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해진 폴더 하나 아래에 둔다.
+사용법: [README.md 작업 공간 준비](../README.md#작업-공간-준비), 동작: [`scripts/setup-workspace.sh`](../scripts/setup-workspace.sh)
 
-```text
-~/gguk/                  # GGUK_HOME. 바꾸려면 환경 변수 GGUK_HOME을 설정한다
-├── gguk-wiki/
-├── Team-MINO-Node/
-├── Team-MINO-Android/
-└── Team-MINO-iOS/
-```
+ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해진 폴더 하나(`GGUK_HOME`, 기본 `~/gguk/`) 아래에 둔다.
 
 - 작업용 clone이 따로 있어도 여기에 별도로 clone한다. 세 레포를 합쳐 약 64MB라 부담이 작고, 링크로 재사용하면 Windows에서 동작이 달라진다(Git Bash의 `ln -s`는 기본 설정에서 복사본을 만든다).
 - ingest와 ask는 같은 위키 clone을 쓴다. ingest는 이 clone에서 작업 브랜치를 만들지만, ask는 `origin/HEAD`를 읽으므로 영향을 받지 않는다([읽는 기준](retrieval.md#읽는-기준)).
@@ -76,20 +70,11 @@ ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해
 
 **설정 스크립트 `scripts/setup-workspace.sh`**
 
-처음에 한 번 실행한다. Windows에서는 Git Bash에서 실행한다.
-
-```bash
-git clone https://github.com/JaesungLeee/gguk-wiki.git ~/gguk/gguk-wiki
-~/gguk/gguk-wiki/scripts/setup-workspace.sh
-```
-
-1. `git`이 설치되어 있는지 확인한다. `gh`가 없거나 `gh auth status`로 로그인되어 있지 않으면 "조회는 쓸 수 있고, ingest는 `gh auth login` 후 쓸 수 있다"고 알리고 계속한다. 레포가 모두 public이라 clone에는 로그인이 필요 없다.
-2. 코드 레포 3개를 하나씩 처리한다. 이미 있으면 건너뛰고, 없으면 clone한다. Windows에서는 `core.longpaths=true`를 설정한다.
-3. 실패한 레포는 이유를 알려 주고 나머지를 계속 진행한다.
-4. 레포별 준비 상태를 요약해 보여 준다.
-
+- `gh`가 없거나 로그인되어 있지 않아도 멈추지 않고 안내만 한다. 조회는 `gh` 없이 쓸 수 있고, 코드 레포가 모두 public이라 clone에 로그인이 필요 없다.
+- Windows에서는 `core.longpaths=true`로 clone한다. 경로가 길면 checkout이 실패하기 때문이다.
+- 한 레포가 실패해도 나머지를 계속 진행하고, 마지막에 레포별 상태를 요약한다. 일부만 실패했을 때 무엇을 다시 할지 알 수 있게 하기 위해서다.
 - 여러 번 실행해도 결과가 같다. 레포가 추가되면 다시 실행한다.
-- 개발자 PC에 Python 설치를 요구하지 않도록 bash로 쓴다.
+- 개발자 PC에 Python 설치를 요구하지 않도록 bash로 쓴다. macOS 기본 bash(3.2)에서도 동작하게 쓴다.
 
 ## 필요 조건
 

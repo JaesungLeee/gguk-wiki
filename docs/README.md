@@ -97,10 +97,13 @@ GGUK 프로젝트의 도메인 지식, 의사결정, 회의록, 기획서를 LLM
 2. 디렉터리 구조, 회의록 템플릿, 결정 문서 형식, 액션 아이템 형식, 용어집 형식, `AGENTS.md` 스키마(도메인 목록, ingest·조회 절차)를 작성한다. 작성 후에는 실제 파일을 기준으로 삼고, 설계 문서에는 이유만 남긴다. **완료** (2026-11-12)
    - 뼈대 파일(`AGENTS.md`, `procedures/`, `templates/`, `domains.yml`, `wiki/glossary.md`)은 [#3](https://github.com/JaesungLeee/gguk-wiki/pull/3), 설계 문서 정리는 그 뒤 PR에서 했다.
    - 작성하면서 미결 사항 형식(`wiki/open-questions/`), 생성 도메인 페이지, ADR 승격 기준을 더했다.
-3. 인덱스 생성과 형식 검사 스크립트를 만들어 CI에 붙이고, `setup-workspace.sh`를 만든다. CI가 merge되면 ruleset에 형식 검사 통과 필수를 추가하고, GitHub App을 만들어 우회 대상에 넣는다.
+3. 인덱스 생성과 형식 검사 스크립트를 만들어 CI에 붙이고, `setup-workspace.sh`를 만든다. CI가 merge되면 ruleset에 형식 검사 통과 필수를 추가하고, GitHub App을 만들어 우회 대상에 넣는다. **진행 중**
    - 생성 대상: `wiki/domains/`, 2단 `index.md`, 결정 시간순 `log.md`, `action-items.md`([인덱스 생성과 형식 검사](ingest.md#인덱스-생성과-형식-검사))
    - 검사 대상에 미결 파일과 `domains.yml`을 넣고, 템플릿 샘플 테스트와 한글 파일 이름(NFD/NFC) 테스트를 둔다.
    - 설치·작업 공간 안내를 루트 `README.md`로 옮긴다.
+   - 스크립트, 테스트, CI(PR 검사 `check`, merge 후 재생성), `setup-workspace.sh`는 [#5](https://github.com/JaesungLeee/gguk-wiki/pull/5)에서 만들었다. 작업 공간 안내는 그 뒤 PR에서 `README.md`로 옮겼다. **완료** (2026-11-12)
+   - GitHub App을 만들고 secrets(`WIKI_APP_ID`, `WIKI_APP_PRIVATE_KEY`)를 등록한다. App이 없는 동안 재생성은 기본 토큰으로 커밋한다. **남음**
+   - ruleset에 형식 검사 필수(`check`)와 App 우회를 추가한다. **남음** (1.3과 함께)
 4. 플러그인(ingest, ask 스킬)을 만들고 코드 레포 3곳과 위키 레포의 `.claude/settings.json`에 등록한다([설치와 배포](plugin.md#설치와-배포)).
    - 스킬별 주입 파일은 [구성](plugin.md#구성)을 따른다. ask는 `AGENTS.md`와 `procedures/ask.md`, ingest는 거기에 `procedures/ingest.md`, `domains.yml`, 템플릿 4개를 더한다.
    - 플러그인 사용법을 루트 `README.md`에 추가한다.
