@@ -1,0 +1,28 @@
+# GGUK 위키 도메인 목록. 문서의 domains 값은 이 목록의 name에서 고른다.
+# 분류 규칙은 procedures/ingest.md의 "도메인" 절을 따른다.
+- name: auth
+  scope: 사용자 식별과 인증, 접근 권한 검증
+- name: user
+  scope: 프로필(닉네임, 아바타)과 사용자 단위 규칙
+- name: onboarding
+  scope: 첫 실행부터 온보딩 완료까지의 순서와 시점(권한 요청 포함)
+- name: room
+  scope: 개인방과 공동방, 방 정보 규칙, 나가기와 방장 위임, 방 목록과 상세
+- name: invitation
+  scope: 초대 코드·링크, 합류, 초대 링크 랜딩
+- name: share-intake
+  scope: 공유 시트로 링크를 받아 장소를 추출하고 저장하는 흐름, 중복 판정
+- name: place
+  scope: 장소 정보, 장소 상세, 지도 표시
+- name: pin
+  scope: 방에 저장한 장소, 다른 방으로 복제
+- name: deck
+  scope: 홈 카드 덱 구성, 정렬, 라벨
+- name: comment
+  scope: 핀 코멘트
+- name: notification
+  scope: 알림함, 푸시 발송 조건
+- name: settings
+  scope: 마이페이지 설정(테마, 알림·위치 설정, 약관)
+- name: design-system
+  scope: 특정 화면·엔티티에 속하지 않는 디자인 결정(글자, 색 체계, 공통 컴포넌트, 접근성)
