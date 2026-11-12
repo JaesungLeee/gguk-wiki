@@ -1,0 +1,35 @@
+# PR 형식 검사. 검사 항목은 docs/ingest.md의 "형식 검사는 PR에서 막는다"를 따른다.
+# secrets를 쓰지 않으므로 fork PR에서도 같은 검사가 돈다.
+name: 형식 검사
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: pip install -r scripts/requirements.txt
+
+      - name: 스크립트 테스트
+        run: python -m unittest discover -s scripts/tests
+
+      - name: 형식 검사
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python scripts/check.py --base "origin/$BASE_REF"
+
+      - name: 생성 스크립트 실행 확인
+        run: python scripts/generate.py --dry-run
