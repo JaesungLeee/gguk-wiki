@@ -1,60 +1,44 @@
 # 검색과 조회 (읽기 경로)
 
-위키와 코드를 찾아 답하는 방식을 정한다. 각자 PC의 Claude Code에서 ask 스킬이 로컬 clone을 읽는다. 레포 위치와 설치는 [plugin.md](plugin.md)를 따른다.
+위키와 코드를 찾아 답하는 방식을 왜 그렇게 정했는지 적는다. 규칙의 정본은 [procedures/ask.md](../procedures/ask.md)다. 각자 PC의 Claude Code에서 ask 스킬이 로컬 clone을 읽는다. 레포 위치와 설치는 [plugin.md](plugin.md)를 따른다.
 
 ## 읽는 기준
 
-위키와 코드 레포 모두 **각 레포의 GitHub default 브랜치**를 읽는다. 작업 폴더는 읽지 않는다.
+규칙: [procedures/ask.md 읽는 기준](../procedures/ask.md#읽는-기준)
+
+위키와 코드 레포 모두 **각 레포의 GitHub default 브랜치**를 읽고, 작업 폴더는 읽지 않는다.
 
 - 각자의 clone은 기능 브랜치에 있거나 수정 중인 상태일 수 있다. merge된 현재 상태를 기준으로 답하기 위해서다.
-- 현재 default 브랜치는 Team-MINO-Android `develop`, Team-MINO-iOS `develop`, Team-MINO-Node `main`, gguk-wiki `main`이다. GitHub 설정이 바뀌면 따라간다.
-
-```bash
-git -C ~/gguk/Team-MINO-Node fetch --quiet origin
-git -C ~/gguk/Team-MINO-Node remote set-head origin --auto     # default 브랜치 변경을 따라간다
-git -C ~/gguk/Team-MINO-Node grep -n -I RefundPolicy origin/HEAD
-git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
-```
-
-- `git fetch`는 remote 참조만 바꾸고 로컬 브랜치와 작업 폴더는 건드리지 않는다.
-- 같은 세션에서 직전 fetch 후 일정 시간이 지나지 않았으면 fetch를 생략한다.
-- 오프라인이면 마지막으로 fetch한 상태로 답하고, 기준 시각을 함께 표시한다.
+- 현재 default 브랜치는 Team-MINO-Android `develop`, Team-MINO-iOS `develop`, Team-MINO-Node `main`, gguk-wiki `main`이다. `origin/HEAD`를 읽으므로 GitHub 설정이 바뀌면 따라간다.
+- `git fetch`는 remote 참조만 바꾸고 로컬 브랜치와 작업 폴더는 건드리지 않는다. 작업 중인 clone에 영향을 주지 않고 최신을 읽을 수 있다.
 
 ## 위키 조회
 
-1. `index.md`로 찾을 곳을 정한다.
-2. [질의 정규화](#질의-정규화) 규칙으로 검색어를 만든다.
-3. grep으로 후보를 찾고, 필요한 페이지만 본문을 읽는다.
-4. 대체된 결정은 빼고 답한다. 이력을 묻는 질문일 때만 포함하고, `(대체됨 → 새 결정 경로)`를 함께 표시한다.
-5. 위키에서 답을 찾지 못하면 없다고 답한다. 추측으로 채우지 않는다.
+규칙: [procedures/ask.md 위키 조회](../procedures/ask.md#위키-조회)
 
-대체된 결정을 기본에서 빼는 것은 옛 정책으로 답하는 것을 막기 위해서다.
+`index.md`로 도메인을 고르고, 도메인 페이지를 읽은 뒤, grep으로 보충한다.
 
-액션 아이템을 물으면 `action-items.md`를 읽는다. 기한이 지났는지는 오늘 날짜로 판단해 답에 표시한다. 생성 파일에는 표시하지 않기 때문이다([인덱스 생성과 형식 검사](ingest.md#인덱스-생성과-형식-검사)).
+- 도메인 페이지를 먼저 읽으면 표기가 달라도 같은 영역의 결정이 모인다. 예: "합류 완료 시 멤버 전원에게 푸시"는 본문에 "알림"이 없어 grep "알림"으로는 빠지지만, `notification` 태그가 있으면 도메인 페이지에 나온다.
+- 도메인 페이지는 ingest할 때 단 태그가 정확해야 효과가 있다. 태그가 틀렸거나 빠진 문서를 잡기 위해 grep 보충을 남긴다.
+- 단건 질문("방 이름 몇 자까지 돼?")은 grep만으로도 찾힌다. 도메인 페이지는 영역 전체나 미결을 묻는 질문에서 효과가 크다.
+- 대체된 결정을 기본에서 빼는 것은 옛 정책으로 답하는 것을 막기 위해서다.
+- 액션 아이템의 기한 지남을 조회할 때 판단하는 것은 생성 파일에 표시하지 않기 때문이다([인덱스 생성과 형식 검사](ingest.md#인덱스-생성과-형식-검사)).
 
 ## 질의 정규화
 
-Claude가 검색어를 만들 때 따르는 규칙이다. `AGENTS.md`의 조회 절차에 넣는다([구성](plugin.md#구성)).
+규칙: [procedures/ask.md 질의 정규화](../procedures/ask.md#질의-정규화)
 
-1. 명사와 어간으로 검색한다. 조사(은/는/이/가/에서/으로 등), 어미(합니다/하는/되나요 등), 불용어(확인, 설명 등)를 붙이지 않는다. grep은 부분 문자열로 찾으므로 "환불"로 찾으면 "환불이", "환불은"도 걸린다.
-2. `RefundPolicy.calculate`, `v1.2` 같은 식별자는 쪼개지 않고 하나의 검색어로 유지한다.
-3. 기획 용어가 [용어집](data-model.md#위키-구조)에 있으면 레포별 심볼명을, 없으면 영어 직역을 검색어로 추가한다.
-4. 결과가 없으면 동의어나 영어 이름으로 바꿔 다시 찾는다.
-
-| 질문 | 검색어 |
-| --- | --- |
-| 환불 기한은 어떻게 되나요? | `환불`, `기한` + 영어 직역 `refund` |
-| 보관함에서 방을 지우면 어떻게 돼? | `보관함`, `삭제` + 용어집 `SavedRoom`(Node, Android), `Archive`(iOS) |
-
-1단계는 LLM이 검색어를 만드므로 형태소 분석기를 쓰지 않는다. 대신 실행할 때마다 검색어가 달라질 수 있고, 검색 품질을 수치로 비교하기 어렵다. 형태소 분석기 정규화와 검색 평가셋은 [검색 고도화](backlog/search-upgrades.md)에 둔다.
+- 조사와 어미를 붙이지 않는 것은 grep이 부분 문자열로 찾기 때문이다. "환불"로 찾으면 "환불이", "환불은"도 걸린다.
+- 1단계는 LLM이 검색어를 만드므로 형태소 분석기를 쓰지 않는다. 대신 실행할 때마다 검색어가 달라질 수 있고, 검색 품질을 수치로 비교하기 어렵다. 형태소 분석기 정규화와 검색 평가셋은 [검색 고도화](backlog/search-upgrades.md)에 둔다.
 
 ## 코드 조회
 
+규칙: [procedures/ask.md 코드 조회](../procedures/ask.md#코드-조회)
+
 - 벡터 DB와 임베딩은 쓰지 않는다. 레포 3개 규모에서는 grep 기반 에이전트 탐색으로 충분하다.
-- 레포 3개는 각자 PC에 clone해 둔다([작업 공간](plugin.md#작업-공간)). 읽는 방법은 [읽는 기준](#읽는-기준)을 따른다.
+- 레포 3개는 각자 PC에 clone해 둔다([작업 공간](plugin.md#작업-공간)).
 - 위키에는 구현 위치(경로, 줄 번호)를 적지 않는다. 리팩터링으로 금방 틀어지므로 조회할 때마다 코드에서 찾는다. 용어집에는 심볼명만 둔다.
-- 용어집의 심볼이 코드에서 찾히지 않으면 "용어집 심볼 `SavedRoom`을 Team-MINO-Node default 브랜치에서 찾지 못함"으로 표시하고, 영어 직역과 동의어로 다시 찾는다. 새 이름을 찾으면 용어집 수정을 제안만 한다. 반영은 채팅 입력으로 ingest한다([용어집 반영](ingest.md#용어집-반영)).
-- 위키 없이 코드만 물어도 된다. 예: "iOS는 푸시 토큰을 언제 서버에 보내?" → Team-MINO-iOS만 찾는다.
+- 용어집의 심볼을 찾지 못하면 수정을 제안만 하고 반영은 채팅 입력으로 ingest한다([용어집 반영](ingest.md#용어집-반영)). 조회는 위키를 고치지 않는다.
 
 **사용 예**
 
@@ -77,9 +61,6 @@ Android 개발자가 Team-MINO-Android에서 작업하다가 "서버에서 환�
 
 ## 답변 형식
 
-`AGENTS.md`의 조회 절차에 넣는다.
+규칙: [procedures/ask.md 답변 형식](../procedures/ask.md#답변-형식)
 
-1. 참조한 위키 페이지, 원본(`raw/`), 날짜를 붙인다.
-2. 코드는 `레포:경로 (브랜치 @ 짧은 커밋 SHA)`로 출처를 붙인다. 예: `Team-MINO-Node:src/.../refund.ts (main @ a1b2c3d)`
-3. 위키와 코드가 다르면 불일치로 표시하고 양쪽 출처를 모두 붙인다([진실의 기준](data-model.md#진실의-기준-source-of-truth)).
-4. 오프라인이라 fetch하지 못했으면 기준 시각을 붙인다.
+출처를 붙이는 것은 답을 원본과 대조할 수 있게 하기 위해서다. 코드 출처에 커밋 SHA를 붙이는 것은 코드가 바뀌어도 답한 시점의 구현을 찾을 수 있게 하기 위해서다. 위키와 코드가 다를 때의 처리는 [진실의 기준](data-model.md#진실의-기준-source-of-truth)을 따른다.
