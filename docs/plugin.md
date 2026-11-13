@@ -34,7 +34,7 @@ allowed-tools:
 ```
 
 - `` !`명령` ``은 스킬 내용이 Claude에게 전달되기 전에 실행되고, 출력이 그 자리에 들어간다([Claude Code 스킬 문서](https://code.claude.com/docs/en/skills)). Claude가 읽을지 판단하지 않으므로 항상 들어간다.
-- 주입 명령은 플러그인의 [`scripts/wiki-show.sh`](../plugin/scripts/wiki-show.sh)를 부르고, `GGUK_HOME` 기본값은 스크립트 안에서 처리한다. `` !`명령` ``은 실행 전에 권한 규칙으로 검사되는데, 셸 변수(`$GGUK_HOME`, `${GGUK_HOME:-…}`)가 든 명령은 `allowed-tools`에 어떤 패턴을 적어도 "실행 전에 검사할 수 없다"며 스킬 호출이 중단된다. auto 모드에서만 통과한다. `${CLAUDE_PLUGIN_ROOT}`는 Claude Code가 검사 전에 실제 경로로 바꾸므로 통과한다(2026-11-13 확인).
+- 주입 명령은 플러그인의 [`scripts/wiki-show.sh`](../plugin/scripts/wiki-show.sh)를 부르고, 작업 공간 위치는 스크립트 안에서 정한다([작업 공간](#작업-공간)). `` !`명령` ``은 실행 전에 권한 규칙으로 검사되는데, 셸 변수(`$GGUK_HOME`, `${GGUK_HOME:-…}`)가 든 명령은 `allowed-tools`에 어떤 패턴을 적어도 "실행 전에 검사할 수 없다"며 스킬 호출이 중단된다. auto 모드에서만 통과한다. `${CLAUDE_PLUGIN_ROOT}`는 Claude Code가 검사 전에 실제 경로로 바꾸므로 통과한다(2026-11-13 확인).
 - 스크립트는 읽기 전에 위키 clone을 fetch한다. 마지막 fetch 뒤에 바뀐 규칙도 바로 주입하기 위해서다. 약 0.5초 걸리고, 실패하면(오프라인) 마지막으로 받은 상태를 읽는다. 주입 맨 위에 기준 커밋과 fetch 결과를 표시한다.
 - 규칙을 스킬별로 나눈 것은 주입량을 줄이기 위해서다. 한 파일(약 10,400자)일 때 ask는 필요 없는 ingest 규칙까지 받았다. 나눈 뒤 ask는 약 3,700자, ingest는 템플릿을 포함해 약 10,400자, 위키 레포 세션(`CLAUDE.md`)은 약 1,600자를 읽는다(2026-11-12 기준).
 - ask는 `domains.yml`을 주입하지 않는다. 조회 1단계가 읽는 `wiki/index.md`에 도메인 이름과 범위가 있다.
@@ -91,14 +91,19 @@ allowed-tools:
 
 사용법: [README.md 작업 공간 준비](../README.md#작업-공간-준비), 동작: [`scripts/setup-workspace.sh`](../scripts/setup-workspace.sh)
 
-ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해진 폴더 하나(`GGUK_HOME`, 기본 `~/gguk/`) 아래에 둔다.
+ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해진 폴더 하나(작업 공간, 기본 `~/gguk/`) 아래에 둔다.
 
+- 위치는 `GGUK_HOME` 환경 변수, 설정 스크립트가 기록한 `~/.config/gguk/home`(`XDG_CONFIG_HOME`을 따른다), `~/gguk` 순으로 정한다.
+- 다른 위치에 두려면 그 위치에 위키를 clone하고 설정 스크립트를 실행한다. 스크립트가 위치를 기록하므로 셸 설정이나 Claude Code 설정을 고치지 않아도 된다. 환경 변수만 쓰면 셸 설정 파일과 `~/.claude/settings.json`의 `env` 두 곳을 고쳐야 하고, 데스크톱 앱이나 IDE는 셸 설정을 읽지 않을 수 있다.
+- 플러그인 설치 설정(`userConfig`)으로 폴더를 받는 안은 제외했다. 값을 저장하기 전에는 기본값이 주입 명령에 들어가지 않고 글자 그대로 남아 스킬 호출이 중단됐다(2026-11-13 확인).
 - 작업용 clone이 따로 있어도 여기에 별도로 clone한다. 세 레포를 합쳐 약 64MB라 부담이 작고, 링크로 재사용하면 Windows에서 동작이 달라진다(Git Bash의 `ln -s`는 기본 설정에서 복사본을 만든다).
 - ingest와 ask는 같은 위키 clone을 쓴다. ingest는 이 clone에서 작업 브랜치를 만들지만, ask는 `origin/HEAD`를 읽으므로 영향을 받지 않는다([읽는 기준](retrieval.md#읽는-기준)).
 - 레포가 없으면 두 스킬 모두 설정 스크립트 실행을 안내한다.
 
 **설정 스크립트 `scripts/setup-workspace.sh`**
 
+- `GGUK_HOME`이 없으면 스크립트가 든 위키 clone의 상위 폴더를 작업 공간으로 쓴다. `GGUK_HOME`이 그 위치와 다르면 안내하고 `GGUK_HOME`을 쓴다.
+- 작업 공간 위치를 기록하지 못하면 실패로 요약하고 `GGUK_HOME` 설정을 안내한다.
 - `gh`가 없거나 로그인되어 있지 않아도 멈추지 않고 안내만 한다. 조회는 `gh` 없이 쓸 수 있고, 코드 레포가 모두 public이라 clone에 로그인이 필요 없다.
 - Windows에서는 `core.longpaths=true`로 clone한다. 경로가 길면 checkout이 실패하기 때문이다.
 - 한 레포가 실패해도 나머지를 계속 진행하고, 마지막에 레포별 상태를 요약한다. 일부만 실패했을 때 무엇을 다시 할지 알 수 있게 하기 위해서다.
@@ -126,7 +131,7 @@ Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한
 - 위키 운영 규칙의 진입점은 `AGENTS.md`다. Codex, Gemini CLI, Cursor, GitHub Copilot 등이 읽는 파일이다. `AGENTS.md`가 상황별로 읽을 `procedures/` 파일을 안내한다.
 - `CLAUDE.md`에는 `@AGENTS.md` 한 줄만 둔다. Claude Code는 `CLAUDE.md`가 있으면 `AGENTS.md`를 따로 읽지 않으므로 import로 연결한다.
 - 스킬은 공개 형식인 SKILL.md로 쓴다. Codex와 Gemini CLI도 이 형식을 읽지만, 도구마다 읽는 폴더가 다르다(Codex는 `.agents/skills/`, Claude Code는 플러그인이나 `.claude/skills/`).
-- SKILL.md의 `` !`명령` `` 주입은 Claude Code 전용이다. 다른 도구용 스킬에는 주입 대신 지시문을 적는다. 예: ask는 "먼저 `git -C ~/gguk/gguk-wiki show origin/HEAD:AGENTS.md`와 `origin/HEAD:procedures/ask.md`를 실행해 읽고 따른다". ingest는 [주입하는 파일](#구성)을 모두 읽게 한다.
+- SKILL.md의 `` !`명령` `` 주입은 Claude Code 전용이다. 다른 도구용 스킬에는 주입 대신 지시문을 적는다. 예: ask는 "먼저 작업 공간을 정한다(`GGUK_HOME`, `~/.config/gguk/home`, `~/gguk` 순, [작업 공간](#작업-공간)). 그다음 `git -C <작업 공간>/gguk-wiki show origin/HEAD:AGENTS.md`와 `origin/HEAD:procedures/ask.md`를 실행해 읽고 따른다". ingest는 [주입하는 파일](#구성)을 모두 읽게 한다.
 - 설정 스크립트는 bash다. PowerShell만 쓰는 도구가 있으면 PowerShell 판을 검토한다.
 
 **지원 기준**: `AGENTS.md`와 `procedures/`를 읽고 셸 명령(`git`, `gh`)을 실행할 수 있는 에이전트형 도구면 지원 대상으로 본다. 팀원별 도구는 조사하지 않는다.

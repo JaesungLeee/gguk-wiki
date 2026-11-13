@@ -9,7 +9,7 @@ GGUK 프로젝트의 정책, 결정, 회의록, 기획 문서를 LLM이 관리�
 위키와 코드 레포 3개를 한 폴더 아래에 둔다. 스킬이 레포 위치를 묻지 않고 이 폴더를 읽는다.
 
 ```text
-~/gguk/                  # GGUK_HOME. 바꾸려면 환경 변수 GGUK_HOME을 설정한다
+~/gguk/                  # 작업 공간. 다른 폴더에 둘 수 있다
 ├── gguk-wiki/
 ├── Team-MINO-Node/
 ├── Team-MINO-Android/
@@ -23,8 +23,9 @@ git clone https://github.com/JaesungLeee/gguk-wiki.git ~/gguk/gguk-wiki
 ~/gguk/gguk-wiki/scripts/setup-workspace.sh
 ```
 
+- 다른 폴더에 두려면 두 명령의 `~/gguk`을 그 폴더로 바꿔 실행한다. 설정 스크립트가 위치를 기록하므로 따로 설정할 것은 없다.
 - 코드 레포 3개를 clone한다. 이미 있는 레포는 건너뛰므로 여러 번 실행해도 된다.
-- 끝나면 레포별 상태를 보여 준다. 실패한 레포가 있으면 이유를 확인하고 다시 실행한다.
+- 끝나면 레포별 상태와 작업 공간 위치 기록 결과를 보여 준다. 실패한 항목이 있으면 이유를 확인하고 다시 실행한다.
 - 작업용 clone이 따로 있어도 이 폴더에 별도로 clone한다.
 - 위키에 정보를 넣으려면(ingest) `gh`를 설치하고 `gh auth login`으로 로그인한다. 조회만 하면 필요 없다.
 

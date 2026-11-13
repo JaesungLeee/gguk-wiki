@@ -8,6 +8,11 @@
 
 set -u
 
+# 작업 공간: GGUK_HOME 환경 변수, 설정 스크립트(setup-workspace.sh)가 기록한 위치, ~/gguk 순으로 정한다.
+home_record="${XDG_CONFIG_HOME:-$HOME/.config}/gguk/home"
+if [ -z "${GGUK_HOME:-}" ] && [ -f "$home_record" ]; then
+  IFS= read -r GGUK_HOME < "$home_record"
+fi
 GGUK_HOME="${GGUK_HOME:-$HOME/gguk}"
 wiki="$GGUK_HOME/gguk-wiki"
 
@@ -38,7 +43,9 @@ if [ ! -d "$wiki/.git" ]; then
   fail "위키 clone이 없습니다: $shown" "작업 공간을 준비한 뒤 다시 실행하세요. Windows에서는 Git Bash에서 실행합니다.
 
     git clone https://github.com/JaesungLeee/gguk-wiki.git $cmd_path
-    $cmd_path/scripts/setup-workspace.sh"
+    $cmd_path/scripts/setup-workspace.sh
+
+다른 폴더에 두려면 위 두 명령의 경로를 그 폴더로 바꿔 실행합니다. 설정 스크립트가 위치를 기록하므로 따로 설정할 것은 없습니다."
 fi
 
 # 최신 규칙을 읽기 위해 먼저 fetch한다. 오프라인이면 마지막으로 받은 상태를 읽는다.
@@ -64,6 +71,7 @@ for file in "$@"; do
 done
 
 echo "<!-- GGUK 위키 규칙: ${head} @ ${sha} (${fetched}) -->"
+echo "<!-- 작업 공간: $GGUK_HOME (규칙의 ~/gguk은 이 경로를 뜻한다) -->"
 for file in "$@"; do
   echo
   echo "<!-- 파일: $file -->"
