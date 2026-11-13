@@ -4,12 +4,27 @@
 #   git clone https://github.com/JaesungLeee/gguk-wiki.git ~/gguk/gguk-wiki
 #   ~/gguk/gguk-wiki/scripts/setup-workspace.sh
 #
-# 코드 레포 3개를 GGUK_HOME(기본 ~/gguk) 아래에 clone한다. 이미 있으면 건너뛰므로 여러 번 실행해도 된다.
+# 작업 공간은 GGUK_HOME, 없으면 이 스크립트가 든 위키 clone의 상위 폴더다. 그 아래에 코드 레포 3개를
+# clone하고, 플러그인이 찾을 수 있도록 위치를 기록한다. 이미 있는 레포는 건너뛰므로 여러 번 실행해도 된다.
 # Windows에서는 Git Bash에서 실행한다.
 
 set -u
 
-GGUK_HOME="${GGUK_HOME:-$HOME/gguk}"
+# 위키 clone 안(<작업 공간>/gguk-wiki/scripts/)에서 실행되면 그 상위 폴더가 작업 공간이다.
+script_dir=$(cd "$(dirname "$0")" && pwd)
+wiki_dir=$(dirname "$script_dir")
+if [ "$(basename "$wiki_dir")" = gguk-wiki ]; then
+  located=$(dirname "$wiki_dir")
+else
+  located="$HOME/gguk"
+fi
+if [ -n "${GGUK_HOME:-}" ] && [ "${GGUK_HOME%/}" != "$located" ]; then
+  echo "안내: GGUK_HOME($GGUK_HOME)이 이 스크립트의 위치($located)와 다릅니다. GGUK_HOME을 씁니다."
+fi
+GGUK_HOME="${GGUK_HOME:-$located}"
+
+# 플러그인의 wiki-show.sh가 GGUK_HOME이 없을 때 이 파일에서 작업 공간을 읽는다.
+home_record="${XDG_CONFIG_HOME:-$HOME/.config}/gguk/home"
 CODE_REPOS=(Team-MINO-Node Team-MINO-Android Team-MINO-iOS)
 GITHUB_ORG="https://github.com/mash-up-kr"
 
@@ -30,8 +45,15 @@ elif ! gh auth status >/dev/null 2>&1; then
 fi
 
 mkdir -p "$GGUK_HOME" || { echo "$GGUK_HOME 폴더를 만들 수 없습니다." >&2; exit 1; }
+GGUK_HOME=$(cd "$GGUK_HOME" && pwd)
 
 results=()
+if mkdir -p "$(dirname "$home_record")" 2>/dev/null && printf '%s\n' "$GGUK_HOME" 2>/dev/null > "$home_record"; then
+  results+=("작업 공간 위치: ${home_record}에 기록함")
+else
+  results+=("작업 공간 위치: 실패 (${home_record}에 쓸 수 없습니다. 플러그인을 쓰려면 GGUK_HOME 환경 변수를 설정하세요)")
+fi
+
 for repo in "${CODE_REPOS[@]}"; do
   dest="$GGUK_HOME/$repo"
   if [ -d "$dest/.git" ]; then

@@ -5,7 +5,7 @@ GGUK 위키에 정보를 넣고(ingest) 조회할 때 따르는 규칙이다.
 - 위키에 넣을 때는 [`procedures/ingest.md`](procedures/ingest.md), 조회할 때는 [`procedures/ask.md`](procedures/ask.md)를 먼저 읽고 따른다. Claude Code의 ingest·ask 스킬은 이 파일들을 자동으로 주입한다.
 - 문서 형식과 상태 값의 의미는 [`templates/`](templates/), 도메인 목록은 [`domains.yml`](domains.yml), 규칙을 정한 이유는 [`docs/`](docs/README.md)에 있다. 설치와 사용 안내는 [`README.md`](README.md)에 있다.
 - 위키 본문은 한국어로 쓴다. 코드 용어(심볼명, 경로)는 영어 원문을 유지한다.
-- 레포는 `${GGUK_HOME:-~/gguk}` 아래에 있다. 규칙 문서의 `~/gguk`는 이 경로를 뜻한다.
+- 레포는 작업 공간 폴더 아래에 있다. 위치는 환경 변수 `GGUK_HOME`, 설정 스크립트가 기록한 `~/.config/gguk/home`, `~/gguk` 순으로 정한다. 규칙 문서의 `~/gguk`는 이 경로를 뜻한다. Claude Code 스킬은 이 경로를 주입 맨 위에 표시한다.
 
 ## 위키 구조
 
