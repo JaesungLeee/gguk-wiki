@@ -1,0 +1,9 @@
+{
+  "extraKnownMarketplaces": {
+    "gguk": {
+      "source": { "source": "github", "repo": "JaesungLeee/gguk-wiki" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": { "gguk-wiki@gguk": true }
+}

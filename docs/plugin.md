@@ -26,37 +26,66 @@ ingest와 조회 규칙은 위키 레포의 `AGENTS.md`(공통)와 `procedures/`
 ```markdown
 ---
 name: ask
-description: GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때
+description: GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때 쓴다
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh *)
 ---
-!`git -C "${GGUK_HOME:-$HOME/gguk}/gguk-wiki" show origin/HEAD:AGENTS.md`
-!`git -C "${GGUK_HOME:-$HOME/gguk}/gguk-wiki" show origin/HEAD:procedures/ask.md`
+!`"${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh" AGENTS.md procedures/ask.md`
 ```
 
 - `` !`명령` ``은 스킬 내용이 Claude에게 전달되기 전에 실행되고, 출력이 그 자리에 들어간다([Claude Code 스킬 문서](https://code.claude.com/docs/en/skills)). Claude가 읽을지 판단하지 않으므로 항상 들어간다.
+- 주입 명령은 플러그인의 [`scripts/wiki-show.sh`](../plugin/scripts/wiki-show.sh)를 부르고, `GGUK_HOME` 기본값은 스크립트 안에서 처리한다. `` !`명령` ``은 실행 전에 권한 규칙으로 검사되는데, 셸 변수(`$GGUK_HOME`, `${GGUK_HOME:-…}`)가 든 명령은 `allowed-tools`에 어떤 패턴을 적어도 "실행 전에 검사할 수 없다"며 스킬 호출이 중단된다. auto 모드에서만 통과한다. `${CLAUDE_PLUGIN_ROOT}`는 Claude Code가 검사 전에 실제 경로로 바꾸므로 통과한다(2026-11-13 확인).
+- 스크립트는 읽기 전에 위키 clone을 fetch한다. 마지막 fetch 뒤에 바뀐 규칙도 바로 주입하기 위해서다. 약 0.5초 걸리고, 실패하면(오프라인) 마지막으로 받은 상태를 읽는다. 주입 맨 위에 기준 커밋과 fetch 결과를 표시한다.
 - 규칙을 스킬별로 나눈 것은 주입량을 줄이기 위해서다. 한 파일(약 10,400자)일 때 ask는 필요 없는 ingest 규칙까지 받았다. 나눈 뒤 ask는 약 3,700자, ingest는 템플릿을 포함해 약 10,400자, 위키 레포 세션(`CLAUDE.md`)은 약 1,600자를 읽는다(2026-11-12 기준).
 - ask는 `domains.yml`을 주입하지 않는다. 조회 1단계가 읽는 `wiki/index.md`에 도메인 이름과 범위가 있다.
 - 상황에 맞는 파일만 LLM이 골라 읽게 하는 안은 제외했다. 읽지 않고 넘어가면 규칙이 빠지고, STT 공유 URL처럼 한 번 올라가면 되돌릴 수 없는 실수가 생긴다.
 - Claude Code의 `.claude/rules/`는 쓰지 않는다. `paths`가 없는 규칙은 그 레포 세션마다 로드되고, `paths`가 있는 규칙은 Claude가 일치하는 파일을 읽을 때만 로드된다([Claude Code 메모리 문서](https://code.claude.com/docs/en/memory)). 코드 레포에서 부른 스킬에는 적용되지 않고, 작업 폴더를 읽으며, 다른 LLM 도구는 읽지 못한다. 같은 문서도 여러 단계로 된 절차는 skill로 옮기라고 안내한다.
 - 규칙을 SKILL.md 본문에 직접 쓰지 않는 것은, 플러그인을 업데이트해야 바뀌어 팀원마다 다른 규칙을 쓸 수 있기 때문이다.
 - 작업 폴더가 아니라 `origin/HEAD`를 읽는다([읽는 기준](retrieval.md#읽는-기준)). 위키 clone이 ingest 작업 브랜치에 있어도 영향이 없다.
-- clone이 없으면 오류 문구가 들어가므로, SKILL.md 본문에서 설정 스크립트 실행을 안내한다.
-- Windows(Git Bash)에서 동작하는지는 플러그인을 만들 때 확인한다.
+- 주입 명령이 0이 아닌 코드로 끝나면 Claude Code는 스킬 호출을 중단하고 명령의 오류만 보여 준다. SKILL.md 본문의 안내도 전달되지 않는다(2026-11-13 확인). 그래서 스크립트는 clone, `origin/HEAD`, 규칙 파일이 없을 때 `[GGUK 위키 규칙을 읽지 못함]`과 해결 방법(설정 스크립트 실행 등)을 출력하고 0으로 끝낸다. SKILL.md 본문은 이 줄을 보면 안내만 전하고 멈추게 한다.
+- Windows(Git Bash)에서 동작하는지는 아직 확인하지 못했다. macOS에서만 확인했다(2026-11-13).
+
+**허용 도구**
+
+스킬이 실행 중일 때 묻지 않고 허용하는 도구(`allowed-tools`)는 아래만 적는다.
+
+| 스킬 | 허용 도구 |
+| --- | --- |
+| `ask` | 주입 스크립트, `git -C <레포>`의 `fetch`, `remote set-head`, `grep`, `show`, `log`, `rev-parse`, `ls-tree` |
+| `ingest` | 주입 스크립트, 노션 MCP의 `notion-search`, `notion-fetch` |
+
+- 주입 스크립트는 허용하지 않으면 스킬 호출이 중단된다(auto 모드 제외).
+- ask의 git 읽기 명령은 허용하지 않으면 default 모드에서 매번 허락을 묻는다(2026-11-13 확인). 조회 한 번에 여러 번 묻지 않도록 허용한다. `checkout`, `push` 같은 쓰기 명령은 허용하지 않는다.
+- ingest의 브랜치 생성, 커밋, `gh pr create`는 허용하지 않는다. 업로더가 실행마다 확인한다.
 
 ## 설치와 배포
 
-- `gguk-wiki` 레포를 Claude Code 플러그인 마켓플레이스로 쓴다. 플러그인은 `plugin/`에 둔다.
-- 코드 레포 3곳과 위키 레포의 `.claude/settings.json`에 마켓플레이스(`extraKnownMarketplaces`)와 플러그인(`enabledPlugins`)만 등록한다. 레포를 처음 연 팀원에게 설치가 안내된다.
-- 등록은 각 팀원이 그 폴더를 신뢰(trust)한 뒤에 적용된다.
-- 위키 레포가 public이라 인증 없이 설치된다.
+사용법: [README.md 플러그인 설치](../README.md#플러그인-설치)
+
+- `gguk-wiki` 레포를 Claude Code 플러그인 마켓플레이스로 쓴다. 마켓플레이스 정의는 `.claude-plugin/marketplace.json`, 플러그인은 `plugin/`에 둔다.
+- 팀원은 각자 사용자 범위(`--scope user`)로 한 번 설치한다. 코드 레포 3곳과 위키 레포 어디서든 스킬을 부를 수 있다.
+- 코드 레포 3곳과 위키 레포의 `.claude/settings.json`에 마켓플레이스(`extraKnownMarketplaces`)와 플러그인(`enabledPlugins`)만 등록한다. 폴더를 신뢰(trust)한 팀원에게 마켓플레이스가 등록되고 자동 업데이트가 켜진다.
+- 등록만으로는 플러그인이 설치되지 않는다. project 설정에서 켠 플러그인도 각자 설치해야 로드된다([Claude Code 플러그인 로딩 문서](https://code.claude.com/docs/en/plugins/loading.md#enabled-in-project-settings-but-not-installed)).
+- 위키 레포가 public이라 인증 없이 설치된다. GitHub SSH 키가 없으면 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`을 설정한다. 셸의 `claude plugin` 명령은 SSH 확인이 실패하면 HTTPS로 바꿔 clone하지만(2026-11-13 확인), 세션 안 `/plugin` 설치와 플러그인 업데이트는 바꾸지 않아 실패한다([마켓플레이스 운영 문서](https://code.claude.com/docs/en/plugins/host-marketplace.md#serve-users-who-have-no-git-host-account)).
 
 ```json
 {
   "extraKnownMarketplaces": {
-    "gguk": { "source": { "source": "github", "repo": "JaesungLeee/gguk-wiki" } }
+    "gguk": {
+      "source": { "source": "github", "repo": "JaesungLeee/gguk-wiki" },
+      "autoUpdate": true
+    }
   },
   "enabledPlugins": { "gguk-wiki@gguk": true }
 }
 ```
+
+**버전과 업데이트**
+
+- `version`을 적지 않는다. 버전은 레포의 커밋 SHA가 되고, 자동 업데이트(`autoUpdate: true`)로 새 커밋을 받는다. 서드파티 마켓플레이스는 자동 업데이트가 기본으로 꺼져 있어 켜 둔다([Claude Code 설정 문서](https://code.claude.com/docs/en/settings-reference#extraknownmarketplaces)).
+- 같은 마켓플레이스가 여러 설정 파일에 있으면 우선순위가 높은 파일의 항목을 쓴다. 사용자 범위 설치는 `autoUpdate` 없이 사용자 설정에 마켓플레이스를 등록하므로, 자동 업데이트는 위 4개 레포에서 연 세션에서 돈다.
+- 플러그인 밖의 커밋(ingest merge, CI 재생성)도 버전을 바꾼다(2026-11-13 확인). 그래서 merge마다 업데이트 알림(`Plugin updated … Run /reload-plugins`)이 뜬다. 규칙은 호출마다 fetch해 주입하므로 업데이트를 미뤄도 규칙은 최신이다.
+- `version`을 지정하는 안은 제외했다. 플러그인을 고칠 때만 업데이트되지만, 고칠 때마다 버전을 올려야 하고 잊으면 아무에게도 전달되지 않는다.
 
 ## 작업 공간
 
@@ -86,7 +115,7 @@ ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해
 | 위키 레포 write 권한 | 협업자로 초대받아야 한다. 조회만 하면 필요 없다 |
 | 노션 MCP (선택) | 노션 회의록을 MCP로 넣는 사람만 필요하다. `claude mcp add --transport http notion https://mcp.notion.com/mcp`로 추가한 뒤 `/mcp`에서 OAuth로 인증한다. 노션 워크스페이스 멤버여야 하고, 게스트는 연결할 수 없다 |
 
-노션 MCP의 서버 이름은 `notion`으로 맞춘다. ingest 스킬은 `notion-search`, `notion-fetch`만 허용 도구로 적는다. 다른 노션 도구는 Claude Code가 실행 전에 허락을 묻는다.
+노션 MCP의 서버 이름은 `notion`으로 맞춘다. ingest 스킬은 `notion-search`, `notion-fetch`만 허용 도구(`mcp__notion__notion-search`, `mcp__notion__notion-fetch`)로 적는다. 서버 이름이 다르면 이 이름이 맞지 않아 매번 허락을 묻는다. 다른 노션 도구는 Claude Code가 실행 전에 허락을 묻는다.
 
 노션 회의록을 내보내기로 넣을 때, Windows에서는 경로가 길면 압축 해제가 실패하므로 짧은 경로에 푼다.
 
