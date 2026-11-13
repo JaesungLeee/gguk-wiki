@@ -1,0 +1,14 @@
+{
+  "name": "gguk",
+  "description": "GGUK 팀 위키 플러그인",
+  "owner": {
+    "name": "JaesungLeee"
+  },
+  "plugins": [
+    {
+      "name": "gguk-wiki",
+      "source": "./plugin",
+      "description": "GGUK 위키 ingest, 위키·코드 레포 조회"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "gguk-wiki",
+  "description": "GGUK 위키에 정보를 넣고(ingest) 위키와 코드 레포를 조회한다(ask). 규칙은 위키 레포의 AGENTS.md와 procedures/에서 읽는다",
+  "author": { "name": "JaesungLeee" },
+  "repository": "https://github.com/JaesungLeee/gguk-wiki"
+}
