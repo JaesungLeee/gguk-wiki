@@ -1,6 +1,6 @@
 ---
 name: ask
-description: GGUK의 정책, 결정, 기획 의도, 미결 사항, 액션 아이템, 다른 플랫폼(Node, Android, iOS) 구현을 물을 때 쓴다. 위키와 코드 레포의 default 브랜치를 읽고 출처를 붙여 답한다.
+description: GGUK의 정책, 결정, 기획 의도, 미결 사항, 액션 아이템, 다른 플랫폼(Node, Android, iOS) 구현을 물을 때 쓴다. 위키의 default 브랜치를 읽고, 구현을 묻거나 대조를 요청하면 코드 레포의 default 브랜치도 읽어 출처를 붙여 답한다.
 argument-hint: <질문>
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh *)
