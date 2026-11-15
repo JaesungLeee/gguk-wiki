@@ -25,6 +25,8 @@ import wikilib  # noqa: E402
 
 REPO = SCRIPTS.parent
 SOURCE = "raw/specs/2026-11-06-mvp-prd.md"
+# domains.yml에 없는 도메인. TempRepo가 실제 domains.yml을 복사하므로 실제 도메인이 될 수 있는 이름(예: payment)은 쓰지 않는다
+UNKNOWN_DOMAIN = "not-a-domain"
 
 # 템플릿의 빈 값을 채울 샘플
 SAMPLE = {
@@ -193,7 +195,7 @@ class CheckTest(RepoTestCase):
     def test_decision_errors(self):
         self.repo.doc("wiki/decisions/a.md", decision(status="proposed"))
         self.repo.doc("wiki/decisions/b.md", decision(domains=[]))
-        self.repo.doc("wiki/decisions/c.md", decision(domains=["payment"]))
+        self.repo.doc("wiki/decisions/c.md", decision(domains=[UNKNOWN_DOMAIN]))
         self.repo.doc("wiki/decisions/d.md", decision(source="raw/specs/없음.md"))
         self.repo.doc("wiki/decisions/e.md", decision(durability=..., decided_at="2026-13-01"))
         self.repo.doc("wiki/decisions/f.md", decision(supersedes=None))
@@ -202,7 +204,7 @@ class CheckTest(RepoTestCase):
         errors = self.repo.errors()
         self.assertHasError(errors, "a.md: `status` 값 `proposed`")
         self.assertHasError(errors, "b.md: `domains`가 1개 이상")
-        self.assertHasError(errors, "c.md: 도메인 `payment`이 domains.yml에 없다")
+        self.assertHasError(errors, f"c.md: 도메인 `{UNKNOWN_DOMAIN}`이 domains.yml에 없다")
         self.assertHasError(errors, "d.md: `source`가 가리키는 파일")
         self.assertHasError(errors, "e.md: 필수 필드 `durability`")
         self.assertHasError(errors, "e.md: `decided_at`은 YYYY-MM-DD")
@@ -403,9 +405,9 @@ class GenerateTest(RepoTestCase):
         self.assertIn("| — | 기한 없음 | — |", page)
 
     def test_write_removes_stale_domain_page(self):
-        self.repo.write("wiki/domains/payment.md", "옛 도메인\n")
+        self.repo.write(f"wiki/domains/{UNKNOWN_DOMAIN}.md", "옛 도메인\n")
         generate.write(self.repo.root, self.outputs)
-        self.assertFalse((self.repo.root / "wiki/domains/payment.md").exists())
+        self.assertFalse((self.repo.root / f"wiki/domains/{UNKNOWN_DOMAIN}.md").exists())
         self.assertEqual((self.repo.root / "wiki/index.md").read_text(encoding="utf-8"), self.outputs["wiki/index.md"])
 
 
