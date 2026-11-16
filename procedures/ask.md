@@ -13,7 +13,8 @@ git -C ~/gguk/Team-MINO-Node grep -n -I RefundPolicy origin/HEAD
 git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
 ```
 
-- 같은 세션에서 직전 fetch 후 일정 시간이 지나지 않았으면 fetch를 생략한다.
+- 위키는 질문마다 fetch한다. 코드 레포는 같은 세션에서 직전 fetch 후 일정 시간이 지나지 않았으면 fetch를 생략한다.
+- 방금 ingest한 내용도 merge 전이면 위키에 없는 것으로 답한다.
 - 오프라인이면 마지막으로 fetch한 상태로 답하고, 기준 시각을 함께 표시한다.
 
 ## 위키 조회
