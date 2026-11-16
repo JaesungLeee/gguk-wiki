@@ -6,7 +6,7 @@ domains: []                   # domains.yml에서 1개 이상
 platforms: []                 # server, android, ios, design 중 영향받는 것. 1개 이상
 source:                       # raw/ 아래 원본 경로
 durability:                   # permanent(원칙, 용어 정의, 아키텍처 방향) | temporal(수치, 일정, 외부 정책)
-# supersedes:                 # 이 결정이 대체한 이전 결정 경로. 있을 때만 쓴다
+# supersedes:                 # 이 결정이 대체한 이전 결정 경로. 여러 개면 목록으로 쓴다. 있을 때만 쓴다
 # superseded_by:              # 이 결정을 대체한 결정 경로. 대체될 때만 쓴다
 ---
 ## 결정
