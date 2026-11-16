@@ -11,6 +11,8 @@
 - 각자의 clone은 기능 브랜치에 있거나 수정 중인 상태일 수 있다. merge된 현재 상태를 기준으로 답하기 위해서다.
 - 현재 default 브랜치는 Team-MINO-Android `develop`, Team-MINO-iOS `develop`, Team-MINO-Node `main`, gguk-wiki `main`이다. `origin/HEAD`를 읽으므로 GitHub 설정이 바뀌면 따라간다.
 - `git fetch`는 remote 참조만 바꾸고 로컬 브랜치와 작업 폴더는 건드리지 않는다. 작업 중인 clone에 영향을 주지 않고 최신을 읽을 수 있다.
+- 위키는 fetch를 생략하지 않는다. merge 뒤 CI가 생성 파일을 다시 커밋하므로 짧은 사이에도 바뀐다. 로드맵 5번 검증에서 fetch를 생략해 merge 직후, 재생성 전 커밋으로 답한 일이 있었다. 코드 레포는 질문마다 fetch하면 느려서 생략을 허용한다.
+- merge 전 내용은 위키에 없는 것으로 답한다. 업로더 확인 중이라 바뀌거나 merge되지 않을 수 있다. 검증에서 방금 ingest한 내용을 작업 폴더에서 읽어 답한 일이 있었다.
 
 ## 위키 조회
 
