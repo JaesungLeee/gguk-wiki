@@ -201,6 +201,9 @@ class CheckTest(RepoTestCase):
         self.repo.doc("wiki/decisions/f.md", decision(supersedes=None))
         self.repo.doc("wiki/decisions/g.md", decision(platforms=["web"]))
         self.repo.write("wiki/decisions/h.md", "# frontmatter 없음\n")
+        self.repo.doc("wiki/decisions/i.md", decision(supersedes=["wiki/decisions/a.md", "wiki/decisions/a.md"]))
+        self.repo.doc("wiki/decisions/j.md", decision(
+            status="superseded", superseded_by=["wiki/decisions/a.md", "wiki/decisions/b.md"]))
         errors = self.repo.errors()
         self.assertHasError(errors, "a.md: `status` 값 `proposed`")
         self.assertHasError(errors, "b.md: `domains`가 1개 이상")
@@ -211,6 +214,8 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "f.md: `supersedes` 값이 비어 있다")
         self.assertHasError(errors, "g.md: `platforms` 값 `web`")
         self.assertHasError(errors, "h.md: frontmatter가 없다")
+        self.assertHasError(errors, "i.md: `supersedes`에 `wiki/decisions/a.md`가 두 번 있다")
+        self.assertHasError(errors, "j.md: `superseded_by`는 경로 하나여야 한다")
 
     def test_decision_file_name_and_platforms(self):
         self.repo.doc("wiki/decisions/2026-11-07-날짜-다름.md", decision())
@@ -229,18 +234,50 @@ class CheckTest(RepoTestCase):
         self.repo.doc(new, decision(supersedes=old))
         self.repo.doc("wiki/decisions/2026-11-06-상태만.md", decision(status="superseded"))
         self.repo.doc("wiki/decisions/2026-11-06-포인터만.md", decision(superseded_by=new))
+        # 여러 결정을 대체한 새 결정에서 목록의 이전 결정 하나만 superseded_by를 안 단 경우
+        old_a = "wiki/decisions/2026-10-01-방-가.md"
+        old_b = "wiki/decisions/2026-10-01-방-나.md"
+        many = "wiki/decisions/2026-11-06-방.md"
+        self.repo.doc(old_a, decision(decided_at="2026-10-01", status="superseded", superseded_by=many))
+        self.repo.doc(old_b, decision(decided_at="2026-10-01"))
+        self.repo.doc(many, decision(supersedes=[old_a, old_b]))
+        # superseded_by로 새 결정을 가리키지만 새 결정의 supersedes 목록에 없는 결정
+        stray = "wiki/decisions/2026-10-01-방-다.md"
+        self.repo.doc(stray, decision(decided_at="2026-10-01", status="superseded", superseded_by=many))
         errors = self.repo.errors()
         self.assertHasError(errors, f"{new}: 이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
         self.assertHasError(errors, "상태만.md: `superseded`이면 `superseded_by`가 있어야 한다")
         self.assertHasError(errors, "포인터만.md: `superseded_by`가 있으면 `status`가 `superseded`여야 한다")
-        self.assertHasError(errors, f"포인터만.md: 이 결정을 대체한 `{new}`의 `supersedes`가 이 결정을 가리키지 않는다")
+        self.assertHasError(errors, f"포인터만.md: 이 결정을 대체한 `{new}`의 `supersedes`에 이 결정이 없다")
+        self.assertHasError(errors, f"{many}: 이 결정이 대체한 `{old_b}`의 `superseded_by`가 이 결정을 가리키지 않는다")
+        self.assertFalse(any(e.startswith(f"{many}: 이 결정이 대체한 `{old_a}`") for e in errors), errors)
+        self.assertHasError(errors, f"{stray}: 이 결정을 대체한 `{many}`의 `supersedes`에 이 결정이 없다")
 
     def test_supersede_links_complete(self):
         old = "wiki/decisions/2026-10-01-덱.md"
         new = "wiki/decisions/2026-11-06-덱.md"
         self.repo.doc(old, decision(decided_at="2026-10-01", status="superseded", superseded_by=new))
         self.repo.doc(new, decision(supersedes=old))
+        # 새 결정 하나가 이전 결정 둘을 목록으로 대체
+        old_a = "wiki/decisions/2026-10-01-방-가.md"
+        old_b = "wiki/decisions/2026-10-01-방-나.md"
+        many = "wiki/decisions/2026-11-06-방.md"
+        self.repo.doc(old_a, decision(decided_at="2026-10-01", status="superseded", superseded_by=many))
+        self.repo.doc(old_b, decision(decided_at="2026-10-01", status="superseded", superseded_by=many))
+        self.repo.doc(many, decision(supersedes=[old_a, old_b]))
         self.assertEqual(self.repo.errors(), [])
+
+    def test_supersede_split_rejected(self):
+        # 결정 하나를 두 결정으로 나눠 대체(1:N)하면 superseded_by가 하나만 가리켜 다른 쪽 짝이 맞지 않는다
+        old = "wiki/decisions/2026-10-01-덱.md"
+        new_a = "wiki/decisions/2026-11-06-덱-가.md"
+        new_b = "wiki/decisions/2026-11-06-덱-나.md"
+        self.repo.doc(old, decision(decided_at="2026-10-01", status="superseded", superseded_by=new_a))
+        self.repo.doc(new_a, decision(supersedes=old))
+        self.repo.doc(new_b, decision(supersedes=old))
+        errors = self.repo.errors()
+        self.assertEqual(len(errors), 1, errors)
+        self.assertHasError(errors, f"{new_b}: 이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
 
     def test_supersede_cycle(self):
         a = "wiki/decisions/2026-11-06-가.md"
@@ -396,6 +433,19 @@ class GenerateTest(RepoTestCase):
         rows = [line for line in log.splitlines() if line.startswith("| 2026")]
         self.assertTrue(rows[-1].startswith("| 2026-10-01"))
         self.assertIn("대체됨 → [덱 최대 10장](decisions/2026-11-06-덱-장수.md)", rows[-1])
+
+    def test_log_many_superseded(self):
+        new = "wiki/decisions/2026-11-06-방-정책.md"
+        olds = ["wiki/decisions/2026-10-02-방-이름.md", "wiki/decisions/2026-10-02-방-색상.md"]
+        for old, title in zip(olds, ["방 이름", "방 색상"]):
+            self.repo.doc(old, decision(title=title, decided_at="2026-10-02", status="superseded", superseded_by=new))
+        self.repo.doc(new, decision(title="방 정책 통합", supersedes=olds))
+        self.assertEqual(self.repo.errors(), [])
+        log = generate.generate(self.repo.root)["wiki/log.md"]
+        rows = [line for line in log.splitlines() if line.startswith("| 2026-10-02")]
+        self.assertEqual(len(rows), 2, log)
+        for row in rows:
+            self.assertIn("대체됨 → [방 정책 통합](decisions/2026-11-06-방-정책.md)", row)
 
     def test_action_items(self):
         page = self.outputs["wiki/action-items.md"]

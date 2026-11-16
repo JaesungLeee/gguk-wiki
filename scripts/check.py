@@ -20,7 +20,6 @@ DOMAIN_NAME_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
 DATED_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-.+\.md$")
 
 DECISION_REQUIRED = ("title", "status", "decided_at", "domains", "platforms", "source", "durability")
-DECISION_OPTIONAL = ("supersedes", "superseded_by")
 DECISION_STATUS = ("decided", "superseded")
 DURABILITY = ("permanent", "temporal")
 PLATFORMS = ("server", "android", "ios", "design")
@@ -32,6 +31,14 @@ ACTION_STATUS = ("open", "done", "dropped")
 OPEN_QUESTION_REQUIRED = ("source", "items")
 OPEN_QUESTION_ITEM_REQUIRED = ("question", "domains", "status")
 OPEN_QUESTION_STATUS = ("open", "resolved", "dropped")
+
+
+def supersedes_list(value) -> list:
+    """`supersedes`는 경로 하나(문자열)나 경로 목록이다. 비교할 수 있게 NFC 경로 목록으로 맞춘다."""
+    if value is None:
+        return []
+    values = value if isinstance(value, list) else [value]
+    return [nfc(v) if isinstance(v, str) else v for v in values]
 
 
 class Checker:
@@ -142,26 +149,39 @@ class Checker:
             self.path_exists(rel, "source", data["source"])
         if self.present(rel, data, "durability"):
             self.one_of(rel, "durability", data["durability"], DURABILITY)
-        for key in DECISION_OPTIONAL:
-            if self.present(rel, data, key):
-                self.decision_path(rel, key, data[key])
+        if self.present(rel, data, "supersedes"):
+            seen = []
+            for old in supersedes_list(data["supersedes"]):
+                if old in seen:
+                    self.error(rel, f"`supersedes`에 `{old}`가 두 번 있다")
+                    continue
+                seen.append(old)
+                self.decision_path(rel, "supersedes", old)
+        if self.present(rel, data, "superseded_by"):
+            if isinstance(data["superseded_by"], list):
+                self.error(rel, "`superseded_by`는 경로 하나여야 한다. 결정 하나를 여러 결정으로 나눠 대체하지 않는다")
+            else:
+                self.decision_path(rel, "superseded_by", data["superseded_by"])
 
     def check_supersede_links(self) -> None:
-        """대체 표시가 양쪽에서 짝이 맞는지 본다. 반만 처리하면 옛 결정이 유효한 것으로 남는다."""
+        """대체 표시가 양쪽에서 짝이 맞는지 본다. 반만 처리하면 옛 결정이 유효한 것으로 남는다.
+
+        새 결정은 `supersedes`로 여러 결정을 대체할 수 있지만, 이전 결정은 `superseded_by`로 한 결정만 가리킨다.
+        """
         for rel, data in self.decisions.items():
             status = data.get("status")
             new = data.get("superseded_by")
-            old = data.get("supersedes")
             if status == "superseded" and not new:
                 self.error(rel, "`superseded`이면 `superseded_by`가 있어야 한다")
             if new and status != "superseded":
                 self.error(rel, "`superseded_by`가 있으면 `status`가 `superseded`여야 한다")
             if isinstance(new, str) and nfc(new) in self.decisions:
-                if nfc(str(self.decisions[nfc(new)].get("supersedes") or "")) != rel:
-                    self.error(rel, f"이 결정을 대체한 `{new}`의 `supersedes`가 이 결정을 가리키지 않는다")
-            if isinstance(old, str) and nfc(old) in self.decisions:
-                if nfc(str(self.decisions[nfc(old)].get("superseded_by") or "")) != rel:
-                    self.error(rel, f"이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
+                if rel not in supersedes_list(self.decisions[nfc(new)].get("supersedes")):
+                    self.error(rel, f"이 결정을 대체한 `{new}`의 `supersedes`에 이 결정이 없다")
+            for old in supersedes_list(data.get("supersedes")):
+                if isinstance(old, str) and old in self.decisions:
+                    if nfc(str(self.decisions[old].get("superseded_by") or "")) != rel:
+                        self.error(rel, f"이 결정이 대체한 `{old}`의 `superseded_by`가 이 결정을 가리키지 않는다")
 
     def check_supersede_cycles(self) -> None:
         """대체가 돌면 짝이 맞아도 사슬에 `decided` 결정이 없어 그 주제가 도메인 페이지에서 사라진다."""
