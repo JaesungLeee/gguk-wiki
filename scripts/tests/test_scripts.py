@@ -38,7 +38,7 @@ SAMPLE = {
     "assignee": "홍길동",
     "question": "방 변경 시 라벨인가 툴팁인가",
     "date": "2026-11-06",
-    "author": "JaesungLeee",
+    "author": "홍길동",
     "domains": ["room"],
     "platforms": ["server", "android", "ios"],
     "attendees": ["홍길동"],
@@ -91,6 +91,7 @@ class TempRepo:
         self.dir = tempfile.TemporaryDirectory()
         self.root = Path(self.dir.name)
         shutil.copy(REPO / "domains.yml", self.root / "domains.yml")
+        shutil.copy(REPO / "people.yml", self.root / "people.yml")
         self.write(SOURCE, "# MVP PRD\n")
 
     def write(self, rel: str, content: str) -> Path:
@@ -326,6 +327,17 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "domains.yml: 도메인 이름 `Push_Notification`은 영어 소문자와 하이픈으로 쓴다")
         self.assertHasError(errors, "domains.yml: 도메인 `room`이 두 번 있다")
 
+    def test_people_file(self):
+        self.repo.write("people.yml", (
+            "- name: 홍길동\n  github: gildong\n  role: android\n"
+            "- name: 홍길동\n  role: design\n"
+            "- name: 김철수\n  github: GilDong\n  role: backend\n"
+        ))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "people.yml: 이름 `홍길동`이 두 번 있다")
+        self.assertHasError(errors, "people.yml: GitHub 아이디 `GilDong`가 두 번 있다")
+        self.assertHasError(errors, "people.yml: `role` 값 `backend`")
+
     def test_open_question_errors(self):
         self.repo.doc("wiki/open-questions/specs/x.md", {
             "source": SOURCE,
@@ -359,6 +371,7 @@ class CheckTest(RepoTestCase):
     def test_pr_changes(self):
         self.repo.write("raw/meetings/old.md", "원본\n")
         self.repo.write("raw/meetings/gone.md", "원본\n")
+        self.repo.write("raw/notes/2026-11-01-예전-채팅.md", "---\ndate: 2026-11-01\n---\n예전 원본\n")
         self.repo.write("wiki/log.md", "생성\n")
         self.repo.write("wiki/domains/old.md", "생성\n")
         self.repo.git("init", "-q", "-b", "main")
@@ -368,6 +381,9 @@ class CheckTest(RepoTestCase):
         self.repo.write("raw/meetings/old.md", "고침\n")
         (self.repo.root / "raw/meetings/gone.md").unlink()
         self.repo.write("raw/meetings/new.md", "새 원본\n")
+        self.repo.write("raw/notes/2026-11-06-작성자-있음.md", filled_template("note.md"))
+        self.repo.write("raw/notes/2026-11-06-작성자-빔.md", "---\ndate: 2026-11-06\nauthor:\n---\n메시지\n")
+        self.repo.write("raw/notes/2026-11-06-작성자-없음.md", "---\ndate: 2026-11-06\n---\n메시지\n")
         self.repo.write("wiki/index.md", "손으로 만듦\n")
         (self.repo.root / "wiki/log.md").unlink()
         self.repo.write("wiki/domains/room.md", "손으로 만듦\n")
@@ -378,6 +394,9 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "raw/meetings/gone.md: raw/의 기존 파일을 지웠다")
         self.assertHasError(errors, "wiki/index.md: 생성 파일을 추가하거나 고쳤다")
         self.assertHasError(errors, "wiki/domains/room.md: 생성 파일을 추가하거나 고쳤다")
+        self.assertHasError(errors, "raw/notes/2026-11-06-작성자-빔.md: `author`가 없거나 비어 있다")
+        self.assertHasError(errors, "raw/notes/2026-11-06-작성자-없음.md: `author`가 없거나 비어 있다")
+        self.assertFalse(any("작성자-있음" in e or "예전-채팅" in e for e in errors), errors)
         self.assertFalse(any("raw/meetings/new.md" in e for e in errors))
         self.assertFalse(any("wiki/log.md" in e for e in errors))
 

@@ -21,7 +21,7 @@ ingest와 조회 규칙은 위키 레포의 `AGENTS.md`(공통)와 `procedures/`
 | 스킬 | 주입하는 파일 |
 | --- | --- |
 | `ask` | `AGENTS.md`, `procedures/ask.md` |
-| `ingest` | `AGENTS.md`, `procedures/ingest.md`, `domains.yml`, `templates/` 4개(결정, 액션 아이템, 미결, 채팅 원본) |
+| `ingest` | `AGENTS.md`, `procedures/ingest.md`, `domains.yml`, `people.yml`, `templates/` 4개(결정, 액션 아이템, 미결, 채팅 원본) |
 
 ```markdown
 ---

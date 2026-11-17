@@ -76,6 +76,7 @@ claude plugin update gguk-wiki@gguk
 | [`procedures/`](procedures/) | 스킬별 규칙: [ingest](procedures/ingest.md), [ask](procedures/ask.md) |
 | [`templates/`](templates/) | 문서 형식. [회의록 템플릿](templates/meeting.md)은 노션 템플릿으로 복사해 쓴다 |
 | [`domains.yml`](domains.yml) | 도메인 목록 |
+| [`people.yml`](people.yml) | 팀원 목록. 채팅 원본의 말한 사람(`author`)을 이 이름으로 적는다 |
 | [`scripts/`](scripts/) | 생성 파일 만들기, 형식 검사, 작업 공간 설정 스크립트 |
 | [`plugin/`](plugin/) | Claude Code 플러그인(ingest, ask 스킬). 마켓플레이스 정의는 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
 | [`docs/`](docs/README.md) | 설계 문서: 규칙을 정한 이유, 검토한 대안, 로드맵 |
