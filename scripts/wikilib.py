@@ -35,6 +35,13 @@ class Domain:
     scope: str
 
 
+@dataclass(frozen=True)
+class Person:
+    name: str
+    github: str | None
+    role: str
+
+
 def nfc(text: str) -> str:
     """macOS(NFD)와 Linux(NFC)의 한글 파일 이름 차이를 없앤다."""
     return unicodedata.normalize("NFC", text)
@@ -55,6 +62,19 @@ def load_domains(root: Path) -> list[Domain]:
             raise FormatError(f"domains.yml: {i + 1}번째 항목에 name과 scope가 필요하다")
         domains.append(Domain(str(entry["name"]), str(entry["scope"])))
     return domains
+
+
+def load_people(root: Path) -> list[Person]:
+    data = yaml.safe_load((root / "people.yml").read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise FormatError("people.yml: 목록이 아니다")
+    people = []
+    for i, entry in enumerate(data):
+        if not isinstance(entry, dict) or not entry.get("name") or not entry.get("role"):
+            raise FormatError(f"people.yml: {i + 1}번째 항목에 name과 role이 필요하다")
+        github = entry.get("github")
+        people.append(Person(str(entry["name"]), str(github) if github else None, str(entry["role"])))
+    return people
 
 
 def parse_frontmatter(path: Path) -> dict:

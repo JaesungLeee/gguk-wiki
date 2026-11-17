@@ -1,0 +1,38 @@
+# GGUK 위키 팀원 목록. 채팅 원본의 author는 이 목록의 name으로 쓴다.
+# 규칙은 procedures/ingest.md의 "인물" 절을 따른다. 외부 인원은 넣지 않는다.
+# github: 위키에 PR을 올리는 계정. 없으면 줄을 뺀다
+# role: server, android, ios, design 중 하나
+- name: 이재성
+  github: JaesungLeee
+  role: android
+- name: 심은석
+  github: simeunseok
+  role: android
+- name: 채윤지
+  github: KateteDeveloper
+  role: android
+- name: 박병호
+  github: hoBahk
+  role: ios
+- name: 김유빈
+  github: dbqls200
+  role: ios
+- name: 이지훈
+  github: hooni0918
+  role: ios
+- name: 공진성
+  github: KKardy
+  role: server
+- name: 김수빈
+  github: sudosubin
+  role: server
+- name: 박민수
+  github: minsour
+  role: server
+- name: 이윤하
+  github: labyrinth30
+  role: server
+- name: 김민호
+  role: design
+- name: 이영
+  role: design

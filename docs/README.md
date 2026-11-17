@@ -44,6 +44,7 @@ GGUK 프로젝트의 도메인 지식, 의사결정, 회의록, 기획서를 LLM
 | [`procedures/`](../procedures/) | 스킬별 규칙: [ingest](../procedures/ingest.md), [ask](../procedures/ask.md) |
 | [`templates/`](../templates/) | 문서 형식과 상태 값 |
 | [`domains.yml`](../domains.yml) | 도메인 목록 |
+| [`people.yml`](../people.yml) | 팀원 목록 |
 
 | 문서 | 내용 | 상태 |
 | --- | --- | --- |

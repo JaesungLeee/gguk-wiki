@@ -267,8 +267,21 @@ class Checker:
                 self.error("domains.yml", f"도메인 `{domain.name}`이 두 번 있다")
             seen.add(domain.name)
 
+    def check_people_file(self) -> None:
+        names, accounts = set(), set()
+        for person in wikilib.load_people(self.root):
+            self.one_of("people.yml", "role", person.role, PLATFORMS)
+            if person.name in names:
+                self.error("people.yml", f"이름 `{person.name}`이 두 번 있다")
+            names.add(person.name)
+            if person.github:
+                if person.github.lower() in accounts:
+                    self.error("people.yml", f"GitHub 아이디 `{person.github}`가 두 번 있다")
+                accounts.add(person.github.lower())
+
     def check_docs(self) -> None:
         self.check_domains_file()
+        self.check_people_file()
         for rel, path in wikilib.list_docs(self.root, wikilib.DECISIONS_DIR):
             self.check_decision(rel, path)
         self.check_supersede_links()
@@ -287,13 +300,21 @@ class Checker:
             capture_output=True,
         ).stdout.decode("utf-8")
         fields = [f for f in out.split("\0") if f]
-        for status, rel in zip(fields[0::2], fields[1::2]):
-            rel = nfc(rel)
+        for status, raw_rel in zip(fields[0::2], fields[1::2]):
+            rel = nfc(raw_rel)
             if rel.startswith("raw/") and status in ("M", "D", "T"):
                 action = "지웠다" if status == "D" else "고쳤다"
                 self.error(rel, f"raw/의 기존 파일을 {action}. 원본은 넣은 뒤 고치거나 지우지 않는다")
             if wikilib.is_generated(rel) and status in ("A", "M", "T"):
                 self.error(rel, "생성 파일을 추가하거나 고쳤다. merge 뒤 CI가 다시 만든다")
+            if rel.startswith("raw/notes/") and rel.endswith(".md") and status == "A":
+                self.check_note(rel, self.root / raw_rel)
+
+    def check_note(self, rel: str, path: Path) -> None:
+        """새로 추가한 채팅 원본에 말한 사람이 있는지 본다. 기존 원본은 고칠 수 없으므로 검사하지 않는다."""
+        data = self.load(rel, path)
+        if data is not None and not data.get("author"):
+            self.error(rel, "`author`가 없거나 비어 있다. 말한 사람을 적는다")
 
 
 def main() -> int:
