@@ -338,6 +338,15 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "people.yml: GitHub 아이디 `GilDong`가 두 번 있다")
         self.assertHasError(errors, "people.yml: `role` 값 `backend`")
 
+    def test_people_file_missing_name(self):
+        self.repo.write("people.yml", "- name: 홍길동\n  role: android\n- role: design\n")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPTS / "check.py"), "--root", str(self.repo.root)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stderr, "error: people.yml: 2번째 항목에 name과 role이 필요하다\n")
+
     def test_open_question_errors(self):
         self.repo.doc("wiki/open-questions/specs/x.md", {
             "source": SOURCE,
