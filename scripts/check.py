@@ -26,6 +26,8 @@ PLATFORMS = ("server", "android", "ios", "design")
 
 ACTION_REQUIRED = ("source", "items")
 ACTION_ITEM_REQUIRED = ("task", "status")
+# 새로 추가하거나 고친 파일의 필수 필드. 담당자 목록 규칙 전에 들어간 파일은 `assignee`가 없거나 문자열일 수 있다
+NEW_ACTION_ITEM_REQUIRED = ("task", "assignee", "status")
 ACTION_STATUS = ("open", "done", "dropped")
 
 OPEN_QUESTION_REQUIRED = ("source", "items")
@@ -48,6 +50,7 @@ class Checker:
         self.files = wikilib.repo_files(root)
         self.domain_names = {d.name for d in wikilib.load_domains(root)}
         self.people = wikilib.load_people(root)
+        self.person_names = {p.name for p in self.people}
         # 결정 경로 → frontmatter. 대체 관계를 양쪽에서 맞춰 볼 때 쓴다.
         self.decisions: dict[str, dict] = {}
 
@@ -236,6 +239,21 @@ class Checker:
             if self.present(where, item, "due") and wikilib.date_str(item["due"]) is None:
                 self.error(where, "`due`는 YYYY-MM-DD 날짜여야 한다")
 
+    def assignee(self, where: str, value) -> None:
+        """담당자는 맡은 사람 목록이다. 목록 밖 사람은 이름 대신 "알 수 없음", 정해지지 않은 몫은 "미정"으로 쓴다."""
+        if not isinstance(value, list) or not value:
+            self.error(where, f"`assignee`는 1명 이상인 목록이어야 한다. 정해지지 않았으면 `[{wikilib.UNDECIDED_PERSON}]`으로 쓴다")
+            return
+        allowed = self.person_names | {wikilib.UNKNOWN_PERSON, wikilib.UNDECIDED_PERSON}
+        seen = []
+        for name in value:
+            if name in seen:
+                self.error(where, f"`assignee`에 `{name}`이 두 번 있다")
+                continue
+            seen.append(name)
+            if not isinstance(name, str) or name not in allowed:
+                self.error(where, f"`assignee` 값 `{name}`이 people.yml에 없다. 목록에 없는 사람은 `{wikilib.UNKNOWN_PERSON}`으로 쓴다")
+
     def check_open_questions(self, rel: str, path: Path) -> None:
         data = self.load(rel, path)
         if data is None:
@@ -272,6 +290,8 @@ class Checker:
         names, accounts = set(), set()
         for person in self.people:
             self.one_of("people.yml", "role", person.role, PLATFORMS)
+            if person.name in (wikilib.UNKNOWN_PERSON, wikilib.UNDECIDED_PERSON):
+                self.error("people.yml", f"`{person.name}`은 이름으로 쓸 수 없다. 목록 밖 사람과 정해지지 않은 담당자에 쓰는 값이다")
             if person.name in names:
                 self.error("people.yml", f"이름 `{person.name}`이 두 번 있다")
             names.add(person.name)
@@ -310,12 +330,41 @@ class Checker:
                 self.error(rel, "생성 파일을 추가하거나 고쳤다. merge 뒤 CI가 다시 만든다")
             if rel.startswith("raw/notes/") and rel.endswith(".md") and status == "A":
                 self.check_note(rel, self.root / raw_rel)
+            if rel.startswith(wikilib.ACTION_ITEMS_DIR + "/") and rel.endswith(".md") and status in ("A", "M"):
+                self.check_new_action_items(rel, self.root / raw_rel)
 
     def check_note(self, rel: str, path: Path) -> None:
         """새로 추가한 채팅 원본에 말한 사람이 있는지 본다. 기존 원본은 고칠 수 없으므로 검사하지 않는다."""
         data = self.load(rel, path)
-        if data is not None and not data.get("author"):
+        if data is None:
+            return
+        author = data.get("author")
+        if not author:
             self.error(rel, "`author`가 없거나 비어 있다. 말한 사람을 적는다")
+        elif not isinstance(author, str) or author not in self.person_names | {wikilib.UNKNOWN_PERSON}:
+            self.error(rel, f"`author` 값 `{author}`가 people.yml에 없다. 말한 사람 한 명의 name이나 `{wikilib.UNKNOWN_PERSON}`을 적는다")
+
+
+    def check_new_action_items(self, rel: str, path: Path) -> None:
+        """새로 추가하거나 고친 액션 아이템의 담당자를 본다. 이 규칙 전에 들어간 파일은 형식이 달라 검사하지 않는다.
+
+        frontmatter와 항목 형식 오류는 check_docs가 이미 내므로 여기서는 담당자만 본다.
+        """
+        try:
+            data = wikilib.parse_frontmatter(path)
+        except FormatError:
+            return
+        items = data.get("items")
+        if not isinstance(items, list):
+            return
+        for i, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            where = f"{rel} items[{i}]"
+            if "assignee" not in item:
+                self.error(where, f"필수 필드 `assignee`가 없다. 정해지지 않았으면 `[{wikilib.UNDECIDED_PERSON}]`으로 쓴다")
+            else:
+                self.assignee(where, item["assignee"])
 
 
 def main() -> int:
