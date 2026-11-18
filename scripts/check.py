@@ -47,6 +47,7 @@ class Checker:
         self.errors: list[str] = []
         self.files = wikilib.repo_files(root)
         self.domain_names = {d.name for d in wikilib.load_domains(root)}
+        self.people = wikilib.load_people(root)
         # 결정 경로 → frontmatter. 대체 관계를 양쪽에서 맞춰 볼 때 쓴다.
         self.decisions: dict[str, dict] = {}
 
@@ -269,7 +270,7 @@ class Checker:
 
     def check_people_file(self) -> None:
         names, accounts = set(), set()
-        for person in wikilib.load_people(self.root):
+        for person in self.people:
             self.one_of("people.yml", "role", person.role, PLATFORMS)
             if person.name in names:
                 self.error("people.yml", f"이름 `{person.name}`이 두 번 있다")
