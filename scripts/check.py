@@ -232,8 +232,8 @@ class Checker:
             self.domains(rel, data["domains"], required=False)
         for where, item in self.items(rel, data):
             self.require(where, item, ACTION_ITEM_REQUIRED)
-            for key in ("task", "assignee"):
-                self.present(where, item, key)
+            self.present(where, item, "task")
+            # 담당자는 check_new_action_items만 본다. 여기서도 보면 빈 목록에 "줄을 뺀다"가 함께 나와 필수 규칙과 어긋난다
             if self.present(where, item, "status"):
                 self.one_of(where, "status", item["status"], ACTION_STATUS)
             if self.present(where, item, "due") and wikilib.date_str(item["due"]) is None:
@@ -346,7 +346,7 @@ class Checker:
 
 
     def check_new_action_items(self, rel: str, path: Path) -> None:
-        """새로 추가하거나 고친 액션 아이템의 담당자를 본다. 이 규칙 전에 들어간 파일은 형식이 달라 검사하지 않는다.
+        """새로 추가하거나 고친 액션 아이템의 담당자를 본다. 이 규칙 전에 들어간 파일은 형식이 달라 PR에서 바뀌지 않으면 검사하지 않고, 고치면 모든 항목을 새 형식으로 본다.
 
         frontmatter와 항목 형식 오류는 check_docs가 이미 내므로 여기서는 담당자만 본다.
         """

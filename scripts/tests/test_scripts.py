@@ -394,10 +394,8 @@ class CheckTest(RepoTestCase):
         errors = self.repo.errors()
         self.assertHasError(errors, "items[1]: `status` 값 `closed`")
         self.assertHasError(errors, "items[1]: `due`는 YYYY-MM-DD")
-        # 레포 전체 검사에서 담당자는 선택 필드다. 없으면 통과하고, 줄만 있고 값이 비면 막는다
-        self.assertFalse(any("`assignee`" in e for e in errors if "items[1]" in e), errors)
-        self.assertHasError(errors, "items[2]: `assignee` 값이 비어 있다")
-        self.assertHasError(errors, "items[3]: `assignee` 값이 비어 있다")
+        # 레포 전체 검사는 담당자를 보지 않는다. 담당자는 PR에서 추가하거나 고친 파일만 본다
+        self.assertFalse(any("`assignee`" in e for e in errors), errors)
 
     def test_old_action_items_not_checked(self):
         # 담당자 목록 규칙 전에 들어간 파일. PR에서 바뀌지 않았으면 담당자를 검사하지 않는다
@@ -431,15 +429,17 @@ class CheckTest(RepoTestCase):
         self.repo.commit_pr()
         errors = self.repo.errors(base="main")
         self.assertHasError(errors, f"{new} items[1]: 필수 필드 `assignee`가 없다")
-        self.assertHasError(errors, f"{new} items[2]: `assignee`는 1명 이상인 목록이어야 한다")
+        # 빈 목록은 "줄을 뺀다" 없이 이 오류 한 건만 낸다
+        self.assertEqual([e for e in errors if e.startswith(f"{new} items[2]:")],
+                         [f"{new} items[2]: `assignee`는 1명 이상인 목록이어야 한다. 정해지지 않았으면 `[{wikilib.UNDECIDED_PERSON}]`으로 쓴다"])
         self.assertHasError(errors, f"{new} items[3]: `assignee`는 1명 이상인 목록이어야 한다")
         # 이름 부분, 팀 이름, GitHub 아이디는 name이 아니다
         for value in ("길동", "디자인 팀", "gildong"):
             self.assertHasError(errors, f"{new} items[4]: `assignee` 값 `{value}`이 people.yml에 없다")
         self.assertHasError(errors, f"{new} items[5]: `assignee`에 `홍길동`이 두 번 있다")
         self.assertHasError(errors, f"{old} items[1]: `assignee`는 1명 이상인 목록이어야 한다")
-        # 레포 전체 검사는 같은 파일을 오류로 보지 않는다(빈 목록만 비어 있다고 막는다)
-        self.assertEqual([e for e in self.repo.errors() if "값이 비어 있다" not in e], [])
+        # 레포 전체 검사는 같은 파일을 오류로 보지 않는다
+        self.assertEqual(self.repo.errors(), [])
 
     def test_new_action_item_assignee_values(self):
         self.repo.commit_base()
