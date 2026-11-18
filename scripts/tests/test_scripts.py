@@ -119,6 +119,17 @@ class TempRepo:
             cwd=self.root, check=True, capture_output=True,
         )
 
+    def commit_base(self) -> None:
+        """지금 파일을 main에 커밋하고 PR 브랜치로 옮긴다."""
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "pr")
+
+    def commit_pr(self) -> None:
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "pr")
+
     def cleanup(self):
         self.dir.cleanup()
 
@@ -162,8 +173,9 @@ class TemplateTest(RepoTestCase):
         self.assertEqual(template_keys("decision.md"), set(check.DECISION_REQUIRED))
         self.assertEqual(
             template_keys("action-items.md"),
-            {k for k in check.ACTION_REQUIRED if k != "items"} | {f"items.{k}" for k in check.ACTION_ITEM_REQUIRED},
+            {k for k in check.ACTION_REQUIRED if k != "items"} | {f"items.{k}" for k in check.NEW_ACTION_ITEM_REQUIRED},
         )
+        self.assertLess(set(check.ACTION_ITEM_REQUIRED), set(check.NEW_ACTION_ITEM_REQUIRED))
         self.assertEqual(
             template_keys("open-questions.md"),
             {k for k in check.OPEN_QUESTION_REQUIRED if k != "items"}
@@ -374,27 +386,63 @@ class CheckTest(RepoTestCase):
         self.repo.doc("wiki/action-items/specs/x.md", {
             "source": SOURCE,
             "items": [
-                {"task": "t", "assignee": ["홍길동"], "status": "closed", "due": "내일"},
-                {"task": "t", "status": "open"},
+                {"task": "t", "status": "closed", "due": "내일"},
+                {"task": "t", "assignee": "", "status": "open"},
                 {"task": "t", "assignee": [], "status": "open"},
-                {"task": "t", "assignee": "홍길동", "status": "open"},
-                {"task": "t", "assignee": ["길동", "디자인 팀", "gildong"], "status": "open"},
-                {"task": "t", "assignee": ["홍길동", "홍길동"], "status": "open"},
             ],
         })
         errors = self.repo.errors()
         self.assertHasError(errors, "items[1]: `status` 값 `closed`")
         self.assertHasError(errors, "items[1]: `due`는 YYYY-MM-DD")
-        # 담당자는 필수 필드이고 1명 이상인 목록이다
-        self.assertHasError(errors, "items[2]: 필수 필드 `assignee`가 없다")
-        self.assertHasError(errors, "items[3]: `assignee`는 1명 이상인 목록이어야 한다")
-        self.assertHasError(errors, "items[4]: `assignee`는 1명 이상인 목록이어야 한다")
+        # 레포 전체 검사에서 담당자는 선택 필드다. 없으면 통과하고, 줄만 있고 값이 비면 막는다
+        self.assertFalse(any("`assignee`" in e for e in errors if "items[1]" in e), errors)
+        self.assertHasError(errors, "items[2]: `assignee` 값이 비어 있다")
+        self.assertHasError(errors, "items[3]: `assignee` 값이 비어 있다")
+
+    def test_old_action_items_not_checked(self):
+        # 담당자 목록 규칙 전에 들어간 파일. PR에서 바뀌지 않았으면 담당자를 검사하지 않는다
+        old = "wiki/action-items/specs/2026-11-06-mvp-prd.md"
+        self.repo.doc(old, {"source": SOURCE, "items": [
+            {"task": "t", "assignee": "디자인 팀", "status": "open"},
+            {"task": "t", "status": "open"},
+            {"task": "t", "assignee": "윤지", "status": "done"},
+        ]})
+        self.repo.commit_base()
+        self.repo.write("raw/meetings/2026-11-10-회의.md", "# 회의\n")
+        self.repo.commit_pr()
+        self.assertEqual(self.repo.errors(base="main"), [])
+
+    def test_new_action_item_assignee_errors(self):
+        old = "wiki/action-items/specs/2026-11-06-mvp-prd.md"
+        self.repo.doc(old, {"source": SOURCE, "items": [{"task": "t", "assignee": "디자인 팀", "status": "open"}]})
+        self.repo.commit_base()
+        new_source = "raw/meetings/2026-11-10-회의.md"
+        self.repo.write(new_source, "# 회의\n")
+        new = "wiki/action-items/meetings/2026-11-10-회의.md"
+        self.repo.doc(new, {"source": new_source, "items": [
+            {"task": "t", "status": "open"},
+            {"task": "t", "assignee": [], "status": "open"},
+            {"task": "t", "assignee": "홍길동", "status": "open"},
+            {"task": "t", "assignee": ["길동", "디자인 팀", "gildong"], "status": "open"},
+            {"task": "t", "assignee": ["홍길동", "홍길동"], "status": "open"},
+        ]})
+        # 기존 파일을 고치면(완료 표시 등) 새 규칙으로 검사한다
+        self.repo.doc(old, {"source": SOURCE, "items": [{"task": "t", "assignee": "디자인 팀", "status": "done"}]})
+        self.repo.commit_pr()
+        errors = self.repo.errors(base="main")
+        self.assertHasError(errors, f"{new} items[1]: 필수 필드 `assignee`가 없다")
+        self.assertHasError(errors, f"{new} items[2]: `assignee`는 1명 이상인 목록이어야 한다")
+        self.assertHasError(errors, f"{new} items[3]: `assignee`는 1명 이상인 목록이어야 한다")
         # 이름 부분, 팀 이름, GitHub 아이디는 name이 아니다
         for value in ("길동", "디자인 팀", "gildong"):
-            self.assertHasError(errors, f"items[5]: `assignee` 값 `{value}`이 people.yml에 없다")
-        self.assertHasError(errors, "items[6]: `assignee`에 `홍길동`이 두 번 있다")
+            self.assertHasError(errors, f"{new} items[4]: `assignee` 값 `{value}`이 people.yml에 없다")
+        self.assertHasError(errors, f"{new} items[5]: `assignee`에 `홍길동`이 두 번 있다")
+        self.assertHasError(errors, f"{old} items[1]: `assignee`는 1명 이상인 목록이어야 한다")
+        # 레포 전체 검사는 같은 파일을 오류로 보지 않는다(빈 목록만 비어 있다고 막는다)
+        self.assertEqual([e for e in self.repo.errors() if "값이 비어 있다" not in e], [])
 
-    def test_action_item_assignee_values(self):
+    def test_new_action_item_assignee_values(self):
+        self.repo.commit_base()
         self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {
             "source": SOURCE,
             "items": [
@@ -404,7 +452,8 @@ class CheckTest(RepoTestCase):
                 {"task": "t", "assignee": [wikilib.UNDECIDED_PERSON], "status": "open"},
             ],
         })
-        self.assertEqual(self.repo.errors(), [])
+        self.repo.commit_pr()
+        self.assertEqual(self.repo.errors(base="main"), [])
 
     def test_pr_changes(self):
         self.repo.write("raw/meetings/old.md", "원본\n")
@@ -412,10 +461,7 @@ class CheckTest(RepoTestCase):
         self.repo.write("raw/notes/2026-11-01-예전-채팅.md", "---\ndate: 2026-11-01\n---\n예전 원본\n")
         self.repo.write("wiki/log.md", "생성\n")
         self.repo.write("wiki/domains/old.md", "생성\n")
-        self.repo.git("init", "-q", "-b", "main")
-        self.repo.git("add", "-A")
-        self.repo.git("commit", "-q", "-m", "base")
-        self.repo.git("checkout", "-q", "-b", "pr")
+        self.repo.commit_base()
         self.repo.write("raw/meetings/old.md", "고침\n")
         (self.repo.root / "raw/meetings/gone.md").unlink()
         self.repo.write("raw/meetings/new.md", "새 원본\n")
@@ -428,8 +474,7 @@ class CheckTest(RepoTestCase):
         self.repo.write("wiki/index.md", "손으로 만듦\n")
         (self.repo.root / "wiki/log.md").unlink()
         self.repo.write("wiki/domains/room.md", "손으로 만듦\n")
-        self.repo.git("add", "-A")
-        self.repo.git("commit", "-q", "-m", "pr")
+        self.repo.commit_pr()
         errors = self.repo.errors(base="main")
         self.assertHasError(errors, "raw/meetings/old.md: raw/의 기존 파일을 고쳤다")
         self.assertHasError(errors, "raw/meetings/gone.md: raw/의 기존 파일을 지웠다")
@@ -464,6 +509,8 @@ class GenerateTest(RepoTestCase):
             {"task": "늦은 일", "assignee": ["홍길동", "김철수"], "status": "open", "due": "2026-12-01"},
             {"task": "이른 일", "assignee": ["김철수"], "status": "open", "due": "2026-11-20"},
             {"task": "끝난 일", "assignee": ["홍길동"], "status": "done"},
+            # 담당자 목록 규칙 전에 들어간 문자열 담당자
+            {"task": "예전 일", "assignee": "디자인 팀", "status": "open", "due": "2026-11-25"},
         ]})
         self.assertEqual(self.repo.errors(), [])
         self.outputs = generate.generate(self.repo.root)
@@ -512,10 +559,11 @@ class GenerateTest(RepoTestCase):
     def test_action_items(self):
         page = self.outputs["wiki/action-items.md"]
         tasks = re.findall(r"^\| [^|]+ \| ([^|]+) \|", page, re.M)[2:]  # 머리글과 구분선 제외
-        self.assertEqual([t.strip() for t in tasks], ["이른 일", "늦은 일", "기한 없음"])
+        self.assertEqual([t.strip() for t in tasks], ["이른 일", "예전 일", "늦은 일", "기한 없음"])
         self.assertNotIn("끝난 일", page)
         self.assertIn("| — | 기한 없음 | 미정 |", page)
         self.assertIn("| 2026-12-01 | 늦은 일 | 홍길동, 김철수 |", page)
+        self.assertIn("| 2026-11-25 | 예전 일 | 디자인 팀 |", page)
 
     def test_write_removes_stale_domain_page(self):
         self.repo.write(f"wiki/domains/{UNKNOWN_DOMAIN}.md", "옛 도메인\n")

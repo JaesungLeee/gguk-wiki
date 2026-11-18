@@ -25,7 +25,9 @@ DURABILITY = ("permanent", "temporal")
 PLATFORMS = ("server", "android", "ios", "design")
 
 ACTION_REQUIRED = ("source", "items")
-ACTION_ITEM_REQUIRED = ("task", "assignee", "status")
+ACTION_ITEM_REQUIRED = ("task", "status")
+# 새로 추가하거나 고친 파일의 필수 필드. 담당자 목록 규칙 전에 들어간 파일은 `assignee`가 없거나 문자열일 수 있다
+NEW_ACTION_ITEM_REQUIRED = ("task", "assignee", "status")
 ACTION_STATUS = ("open", "done", "dropped")
 
 OPEN_QUESTION_REQUIRED = ("source", "items")
@@ -230,9 +232,8 @@ class Checker:
             self.domains(rel, data["domains"], required=False)
         for where, item in self.items(rel, data):
             self.require(where, item, ACTION_ITEM_REQUIRED)
-            self.present(where, item, "task")
-            if "assignee" in item:
-                self.assignee(where, item["assignee"])
+            for key in ("task", "assignee"):
+                self.present(where, item, key)
             if self.present(where, item, "status"):
                 self.one_of(where, "status", item["status"], ACTION_STATUS)
             if self.present(where, item, "due") and wikilib.date_str(item["due"]) is None:
@@ -329,6 +330,8 @@ class Checker:
                 self.error(rel, "생성 파일을 추가하거나 고쳤다. merge 뒤 CI가 다시 만든다")
             if rel.startswith("raw/notes/") and rel.endswith(".md") and status == "A":
                 self.check_note(rel, self.root / raw_rel)
+            if rel.startswith(wikilib.ACTION_ITEMS_DIR + "/") and rel.endswith(".md") and status in ("A", "M"):
+                self.check_new_action_items(rel, self.root / raw_rel)
 
     def check_note(self, rel: str, path: Path) -> None:
         """새로 추가한 채팅 원본에 말한 사람이 있는지 본다. 기존 원본은 고칠 수 없으므로 검사하지 않는다."""
@@ -340,6 +343,28 @@ class Checker:
             self.error(rel, "`author`가 없거나 비어 있다. 말한 사람을 적는다")
         elif not isinstance(author, str) or author not in self.person_names | {wikilib.UNKNOWN_PERSON}:
             self.error(rel, f"`author` 값 `{author}`가 people.yml에 없다. 말한 사람 한 명의 name이나 `{wikilib.UNKNOWN_PERSON}`을 적는다")
+
+
+    def check_new_action_items(self, rel: str, path: Path) -> None:
+        """새로 추가하거나 고친 액션 아이템의 담당자를 본다. 이 규칙 전에 들어간 파일은 형식이 달라 검사하지 않는다.
+
+        frontmatter와 항목 형식 오류는 check_docs가 이미 내므로 여기서는 담당자만 본다.
+        """
+        try:
+            data = wikilib.parse_frontmatter(path)
+        except FormatError:
+            return
+        items = data.get("items")
+        if not isinstance(items, list):
+            return
+        for i, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            where = f"{rel} items[{i}]"
+            if "assignee" not in item:
+                self.error(where, f"필수 필드 `assignee`가 없다. 정해지지 않았으면 `[{wikilib.UNDECIDED_PERSON}]`으로 쓴다")
+            else:
+                self.assignee(where, item["assignee"])
 
 
 def main() -> int:

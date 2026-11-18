@@ -1,6 +1,6 @@
 ---
 date:                         # YYYY-MM-DD
-attendees: []                 # 참석자 이름
+attendees: []                 # 참석자 이름. people.yml의 name. 목록에 없으면 "알 수 없음"으로 바꾼다
 domains: []                   # 모르면 비워 둔다. ingest가 추론한다
 ---
 ## 안건
