@@ -24,6 +24,11 @@ GENERATED_DIRS = (DOMAIN_PAGES_DIR,)
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+# people.yml에 없는 사람 대신 쓰는 값. 목록 밖 사람의 이름은 위키에 남기지 않는다.
+UNKNOWN_PERSON = "알 수 없음"
+# 팀원이 맡지만 누구인지 정해지지 않은 몫. `assignee`에만 쓴다.
+UNDECIDED_PERSON = "미정"
+
 
 class FormatError(Exception):
     pass
