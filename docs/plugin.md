@@ -108,6 +108,7 @@ ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해
 - Windows에서는 `core.longpaths=true`로 clone한다. 경로가 길면 checkout이 실패하기 때문이다.
 - 한 레포가 실패해도 나머지를 계속 진행하고, 마지막에 레포별 상태를 요약한다. 일부만 실패했을 때 무엇을 다시 할지 알 수 있게 하기 위해서다.
 - 여러 번 실행해도 결과가 같다. 레포가 추가되면 다시 실행한다.
+- Codex·Pi용 스킬을 `~/.agents/skills/`에 링크한다([설치](#다른-llm-도구-지원-1단계-확장)).
 - 개발자 PC에 Python 설치를 요구하지 않도록 bash로 쓴다. macOS 기본 bash(3.2)에서도 동작하게 쓴다.
 
 ## 필요 조건
@@ -126,16 +127,53 @@ ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해
 
 ## 다른 LLM 도구 지원 (1단계 확장)
 
-Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한다. 처음부터 다른 도구도 읽을 수 있는 형식으로 써 두고, 배포는 확장 단계에서 정한다.
+사용법: [README.md Codex와 Pi](../README.md#codex와-pi), 스킬: [`agents/skills/`](../agents/skills/)
 
-- 위키 운영 규칙의 진입점은 `AGENTS.md`다. Codex, Gemini CLI, Cursor, GitHub Copilot 등이 읽는 파일이다. `AGENTS.md`가 상황별로 읽을 `procedures/` 파일을 안내한다.
+Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한다. 팀 투표(2026-11-26, 복수 선택, 11명)에서 Claude Code 9명, Codex 5명, Pi 2명이 나와 Codex와 Pi를 지원한다.
+
+- 위키 운영 규칙의 진입점은 `AGENTS.md`다. Codex, Pi, Gemini CLI, Cursor, GitHub Copilot 등이 읽는 파일이다. `AGENTS.md`가 상황별로 읽을 `procedures/` 파일을 안내한다.
 - `CLAUDE.md`에는 `@AGENTS.md` 한 줄만 둔다. Claude Code는 `CLAUDE.md`가 있으면 `AGENTS.md`를 따로 읽지 않으므로 import로 연결한다.
-- 스킬은 공개 형식인 SKILL.md로 쓴다. Codex와 Gemini CLI도 이 형식을 읽지만, 도구마다 읽는 폴더가 다르다(Codex는 `.agents/skills/`, Claude Code는 플러그인이나 `.claude/skills/`).
-- SKILL.md의 `` !`명령` `` 주입은 Claude Code 전용이다. 다른 도구용 스킬에는 주입 대신 지시문을 적는다. 예: ask는 "먼저 작업 공간을 정한다(`GGUK_HOME`, `~/.config/gguk/home`, `~/gguk` 순, [작업 공간](#작업-공간)). 그다음 `git -C <작업 공간>/gguk-wiki show origin/HEAD:AGENTS.md`와 `origin/HEAD:procedures/ask.md`를 실행해 읽고 따른다". ingest는 [주입하는 파일](#구성)을 모두 읽게 한다.
-- 설정 스크립트는 bash다. PowerShell만 쓰는 도구가 있으면 PowerShell 판을 검토한다.
+- 스킬은 공개 형식인 SKILL.md로 쓴다. Claude Code는 플러그인에서, Codex와 Pi는 사용자 폴더 `~/.agents/skills/`에서 읽는다([Codex 스킬 문서](https://learn.chatgpt.com/docs/build-skills), [Pi 스킬 문서](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md)).
 
-**지원 기준**: `AGENTS.md`와 `procedures/`를 읽고 셸 명령(`git`, `gh`)을 실행할 수 있는 에이전트형 도구면 지원 대상으로 본다. 팀원별 도구는 조사하지 않는다.
+**공용 스킬 `agents/skills/`**
 
-- 동작 검증은 Claude Code만 한다. 다른 도구는 쓰는 팀원이 나오면 그 도구로 확인하고, 그 도구가 읽는 폴더에 스킬을 추가한다.
+| 스킬 | Claude Code 스킬 | 읽는 파일 |
+| --- | --- | --- |
+| `gguk-ask` | `ask` | [주입하는 파일](#구성)과 같다 |
+| `gguk-ingest` | `ingest` | [주입하는 파일](#구성)과 같다 |
+
+- SKILL.md의 `` !`명령` `` 주입은 Claude Code 전용이다. 공용 스킬은 "가장 먼저 이 명령을 실행해 출력된 규칙을 따른다"는 지시문과 명령을 적는다. 명령은 작업 공간을 정한 뒤([작업 공간](#작업-공간)) 위키 clone의 `plugin/scripts/wiki-show.sh`를 부른다. fetch, `origin/HEAD` 읽기, 읽지 못했을 때의 안내를 Claude Code 스킬과 같은 스크립트로 처리하기 위해서다. 위키 clone이 없으면 명령이 같은 형식의 안내(`[GGUK 위키 규칙을 읽지 못함]`)를 출력한다.
+- 스킬 폴더 기준 상대 경로로 스크립트를 부르지 않는다. Windows에서는 링크 대신 복사본이 설치되어 상대 경로가 위키 clone을 가리키지 않는다.
+- 이름에 `gguk-`를 붙인다. 사용자 폴더는 모든 레포에서 읽히므로 다른 스킬의 `ask`, `ingest`와 겹치지 않게 한다. Pi는 이름이 겹치면 먼저 찾은 스킬만 쓴다.
+- 레포 안의 `.agents/skills/`에 두지 않는다. 위키 레포에서 연 세션이 레포 범위와 사용자 범위에서 같은 스킬을 두 번 찾는다. Codex는 같은 이름을 합치지 않고 둘 다 보여 준다.
+- `allowed-tools`, `model`, `argument-hint`는 적지 않는다. Claude Code 전용 필드이고, Codex와 Pi는 각자의 승인 방식과 모델 설정을 따른다.
+- 규칙은 호출마다 읽으므로 규칙이 바뀌어도 스킬을 다시 설치하지 않는다. 스킬 본문은 명령과 몇 줄의 지시뿐이라 거의 바뀌지 않는다.
+
+**설치**
+
+- [설정 스크립트](#작업-공간)가 `~/.agents/skills/<스킬>`을 위키 clone의 `agents/skills/<스킬>`에 링크한다. 작업 공간 준비 한 번으로 두 도구에 모두 설치되고, 위키 clone을 pull하면 스킬도 바뀐다.
+- 같은 이름의 폴더가 이미 있으면 스크립트가 만든 것(다른 작업 공간의 `gguk-wiki/agents/skills/`를 가리키는 링크, 표시 파일 `.gguk-wiki`가 있는 복사본)만 바꾸고, 아니면 실패로 요약한다. 사용자가 둔 스킬을 지우지 않기 위해서다.
+- Codex 플러그인과 Pi 패키지로 배포하는 안은 제외했다. 도구마다 배포 경로를 따로 관리해야 하고, 두 도구가 같이 읽는 폴더 하나로 충분하다.
+
+**도구별 차이**
+
+| 항목 | Claude Code | Codex | Pi |
+| --- | --- | --- | --- |
+| 부르기 | `/gguk-wiki:ask` | `$gguk-ask` | `/skill:gguk-ask` |
+| 명령 허락 | `allowed-tools` 밖은 묻는다 | 샌드박스와 승인 정책을 따른다 | 묻지 않는다 |
+| 노션 MCP | `claude mcp add` | `codex mcp add` | `mcp.json` |
+
+- Codex의 read-only 샌드박스에서는 위키 clone의 fetch가 막혀 마지막으로 받은 규칙을 읽는다(2026-11-26 확인). 스크립트가 실패해도 0으로 끝나므로 조회는 계속된다.
+- Pi는 명령마다 허락을 묻지 않는다. ingest의 확인 단계([흐름](../procedures/ingest.md#흐름) 7번)는 규칙으로 지켜지므로, `gguk-ingest` 스킬에 push와 PR 생성은 업로더 확인 뒤에만 한다고 다시 적는다.
+
+**검증**
+
+- Codex: `codex-cli 0.169.0`에서 `$gguk-ask`로 스킬이 잡히고 규칙 2개를 읽는 것을 확인했다(2026-11-26, macOS). `$gguk-ingest`는 규칙 8개를 읽는 것까지 확인했고, PR까지의 흐름은 확인하지 않았다.
+- Pi: 확인하지 않았다. Pi를 쓰는 팀원이 확인한다.
+- Windows(Git Bash)의 복사본 설치는 확인하지 않았다.
+
+**지원 기준**: `AGENTS.md`와 `procedures/`를 읽고 셸 명령(`git`, `gh`)을 실행할 수 있는 에이전트형 도구면 지원 대상으로 본다.
+
+- 다른 도구는 쓰는 팀원이 나오면 그 도구로 확인한다. `~/.agents/skills/`를 읽는 도구면 공용 스킬을 그대로 쓰고, 아니면 그 도구가 읽는 폴더에 링크를 더한다.
 - 웹 채팅 전용 도구(ChatGPT, Gemini, Claude 웹앱 등)는 로컬 clone을 읽거나 `gh`를 실행할 수 없어 지원하지 않는다. 지원하려면 [MCP 서버](backlog/mcp-server.md)가 필요하다.
 - 에이전트형 도구를 쓸 수 없는 팀원은 설치 안내 때 직접 알린다. 무료 플랜으로는 쓸 수 없는 도구가 있다. 예: Claude Free 플랜은 Claude Code를 쓸 수 없다([필요 조건](#필요-조건)).

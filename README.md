@@ -1,8 +1,8 @@
 # gguk-wiki
 
-GGUK 프로젝트의 정책, 결정, 회의록, 기획 문서를 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
+GGUK 프로젝트의 정책, 결정, 회의록, 기획 문서를 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
 
-처음 쓸 때 [작업 공간을 준비](#작업-공간-준비)하고 [플러그인을 설치](#플러그인-설치)한다. 필요한 도구와 권한은 [필요 조건](docs/plugin.md#필요-조건)에 있다.
+처음 쓸 때 [작업 공간을 준비](#작업-공간-준비)한다. Claude Code는 [플러그인을 설치](#플러그인-설치)하고, Codex와 Pi는 [작업 공간 준비만으로 스킬이 설치된다](#codex와-pi). 필요한 도구와 권한은 [필요 조건](docs/plugin.md#필요-조건)에 있다.
 
 ## 작업 공간 준비
 
@@ -27,6 +27,7 @@ git clone https://github.com/JaesungLeee/gguk-wiki.git ~/gguk/gguk-wiki
 - 코드 레포 3개를 clone한다. 이미 있는 레포는 건너뛰므로 여러 번 실행해도 된다.
 - 끝나면 레포별 상태와 작업 공간 위치 기록 결과를 보여 준다. 실패한 항목이 있으면 이유를 확인하고 다시 실행한다.
 - 작업용 clone이 따로 있어도 이 폴더에 별도로 clone한다.
+- Codex·Pi용 스킬을 `~/.agents/skills/`에 링크한다. 이 폴더에 같은 이름의 다른 스킬이 있으면 건드리지 않고 실패로 알린다.
 - 위키에 정보를 넣으려면(ingest) `gh`를 설치하고 `gh auth login`으로 로그인한다. 조회만 하면 필요 없다.
 
 ## 플러그인 설치
@@ -57,6 +58,21 @@ claude plugin install gguk-wiki --marketplace JaesungLeee/gguk-wiki --scope user
   claude mcp add --transport http notion https://mcp.notion.com/mcp
   ```
 
+## Codex와 Pi
+
+[작업 공간 준비](#작업-공간-준비)의 설정 스크립트가 스킬 `gguk-ask`, `gguk-ingest`를 `~/.agents/skills/`에 링크한다. Codex와 Pi 모두 이 폴더를 읽으므로 따로 설치할 것은 없다. 열려 있는 세션에서 스킬이 보이지 않으면 새 세션을 연다.
+
+| 도구 | 조회 | 넣기 |
+| --- | --- | --- |
+| Codex | `$gguk-ask 보관함에서 방을 지우면 어떻게 돼?` | `$gguk-ingest ~/Downloads/2026-11-10-결제-정책.md` |
+| Pi | `/skill:gguk-ask 보관함에서 방을 지우면 어떻게 돼?` | `/skill:gguk-ingest ~/Downloads/2026-11-10-결제-정책.md` |
+
+- 명령 없이 물어도 도구가 필요하면 스킬을 부른다. 부르지 않으면 위 명령으로 직접 부른다.
+- 스킬은 호출할 때마다 위키 default 브랜치에서 규칙을 읽는다. 규칙이 바뀌어도 다시 설치할 필요가 없다. Windows에서는 링크 대신 복사본이 설치되므로, `agents/skills/`가 바뀌면 설정 스크립트를 다시 실행한다.
+- Codex의 샌드박스가 네트워크나 위키 clone 쓰기를 막으면 규칙과 코드를 fetch하지 못하고 마지막으로 받은 상태를 읽는다. 이때 답에 기준 시각이 붙는다. ingest의 브랜치 생성, 커밋, PR은 승인을 받아 실행한다.
+- Pi는 명령을 실행하기 전에 허락을 묻지 않는다. ingest는 PR을 만들기 전에 변경 요약과 확인 항목을 보여 주고 확인을 받는다.
+- 노션 회의록을 MCP로 넣으려면 각 도구의 MCP 설정에 노션 MCP(`https://mcp.notion.com/mcp`)를 `notion`이라는 이름으로 추가한다. Codex는 `codex mcp add notion --url https://mcp.notion.com/mcp`로 추가하고, Pi는 `~/.pi/agent/mcp.json`에 적는다. 노션 워크스페이스 멤버만 연결할 수 있다.
+
 ## 플러그인 업데이트
 
 위키 레포와 코드 레포에서 연 세션은 플러그인을 자동으로 업데이트한다. `Plugin updated` 알림이 뜨면 `/reload-plugins`를 실행하거나 새 세션을 연다. 직접 업데이트하려면 다음을 실행한다.
@@ -79,4 +95,5 @@ claude plugin update gguk-wiki@gguk
 | [`people.yml`](people.yml) | 팀원 목록. 채팅 원본의 말한 사람(`author`)과 액션 아이템 담당자(`assignee`)를 이 이름으로 적는다. 목록에 없는 사람은 "알 수 없음" |
 | [`scripts/`](scripts/) | 생성 파일 만들기, 형식 검사, 작업 공간 설정 스크립트 |
 | [`plugin/`](plugin/) | Claude Code 플러그인(ingest, ask 스킬). 마켓플레이스 정의는 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
+| [`agents/skills/`](agents/skills/) | Codex·Pi용 스킬(`gguk-ingest`, `gguk-ask`) |
 | [`docs/`](docs/README.md) | 설계 문서: 규칙을 정한 이유, 검토한 대안, 로드맵 |

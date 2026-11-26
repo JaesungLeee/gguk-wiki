@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # GGUK 위키 규칙 파일을 위키 clone의 default 브랜치(origin/HEAD)에서 읽어 출력한다.
-# ingest·ask 스킬이 SKILL.md의 !`...` 주입으로 부른다. docs/plugin.md의 "구성"을 따른다.
+# ingest·ask 스킬이 SKILL.md의 !`...` 주입으로 부르고, Codex·Pi용 스킬(agents/skills/)은 명령으로 부른다.
+# docs/plugin.md의 "구성"을 따른다.
 #
 #   wiki-show.sh AGENTS.md procedures/ask.md
 #

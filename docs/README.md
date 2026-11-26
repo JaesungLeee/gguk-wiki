@@ -18,7 +18,7 @@ GGUK 프로젝트의 도메인 지식, 의사결정, 회의록, 기획서를 LLM
 | 회의록 형식 | 노션, STT 웹 요약(Alt), 마크다운(.md) ([입력](ingest.md#입력)) |
 | 기획 문서 | PRD, 스펙 문서. 마크다운(.md). 기획자가 따로 없고, 팀 아이디에이션 → 디자인 → PRD 순으로 만든다 |
 | 디자인 | Figma. 디자인 결정만 위키에 남기고 화면 정의는 Figma에 둔다([진실의 기준](data-model.md#진실의-기준-source-of-truth)) |
-| LLM 사용 | 각자 PC의 Claude Code, 개인 구독 |
+| LLM 사용 | 각자 PC의 Claude Code, Codex, Pi, 개인 구독 ([다른 LLM 도구 지원](plugin.md#다른-llm-도구-지원-1단계-확장)) |
 
 ## 1단계 범위
 
@@ -113,6 +113,7 @@ GGUK 프로젝트의 도메인 지식, 의사결정, 회의록, 기획서를 LLM
    - 검증은 테스트 레포에서 했다. 검증 결과로 바꾼 규칙은 [#15](https://github.com/JaesungLeee/gguk-wiki/pull/15), 그 회귀 검증 결과로 보완한 규칙은 [#16](https://github.com/JaesungLeee/gguk-wiki/pull/16)에 반영했고, #16도 회귀 검증을 통과했다.
 6. 기존 자료를 옮긴다. PRD·스펙으로 기준선을 만들고 노션 회의록으로 보충한다([기존 자료 이관](ingest.md#기존-자료-이관)).
 7. 1단계 확장을 진행한다([지원 기준](plugin.md#다른-llm-도구-지원-1단계-확장)).
+   - 팀 투표(2026-11-26)로 Codex와 Pi를 지원하기로 했다. 공용 스킬(`agents/skills/`)과 설정 스크립트의 설치 단계를 추가했다. Codex는 두 스킬이 규칙을 읽는 것까지 확인했고, Codex ingest의 PR 흐름과 Pi는 쓰는 팀원이 확인한다.
 
 ## 미결 사항
 

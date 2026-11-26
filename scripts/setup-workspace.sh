@@ -5,7 +5,8 @@
 #   ~/gguk/gguk-wiki/scripts/setup-workspace.sh
 #
 # 작업 공간은 GGUK_HOME, 없으면 이 스크립트가 든 위키 clone의 상위 폴더다. 그 아래에 코드 레포 3개를
-# clone하고, 플러그인이 찾을 수 있도록 위치를 기록한다. 이미 있는 레포는 건너뛰므로 여러 번 실행해도 된다.
+# clone하고, 플러그인이 찾을 수 있도록 위치를 기록한다. Codex·Pi용 스킬을 ~/.agents/skills/에 링크한다.
+# 이미 있는 레포와 스킬은 건너뛰므로 여러 번 실행해도 된다.
 # Windows에서는 Git Bash에서 실행한다.
 
 set -u
@@ -83,6 +84,40 @@ if [ -d "$GGUK_HOME/gguk-wiki/.git" ]; then
   results+=("gguk-wiki: 있음")
 else
   results+=("gguk-wiki: 없음 ($GGUK_HOME/gguk-wiki에 clone하세요)")
+fi
+
+# Codex·Pi 등 Agent Skills 사용자 폴더를 읽는 도구용 스킬. 위키 clone의 agents/skills/를 링크한다.
+# Windows Git Bash의 ln -s는 기본 설정에서 복사본을 만든다. 스킬 본문이 바뀌면 다시 실행한다.
+skills_src="$GGUK_HOME/gguk-wiki/agents/skills"
+skills_dest="$HOME/.agents/skills"
+if [ -d "$skills_src" ]; then
+  for src in "$skills_src"/*/; do
+    src="${src%/}"
+    name=$(basename "$src")
+    dest="$skills_dest/$name"
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
+      results+=("스킬 $name: 이미 있음")
+      continue
+    fi
+    # 이 스크립트가 만든 것(다른 작업 공간을 가리키는 링크, 표시가 있는 복사본)만 바꾼다.
+    if [ -L "$dest" ]; then
+      case "$(readlink "$dest")" in
+        */gguk-wiki/agents/skills/"$name") ;;
+        *) results+=("스킬 $name: 실패 (${dest}가 이미 있지만 이 스크립트가 만든 것이 아닙니다)"); continue ;;
+      esac
+    elif [ -e "$dest" ] && [ ! -f "$dest/.gguk-wiki" ]; then
+      results+=("스킬 $name: 실패 (${dest}가 이미 있지만 이 스크립트가 만든 것이 아닙니다)")
+      continue
+    fi
+    rm -rf "$dest"
+    if mkdir -p "$skills_dest" && ln -s "$src" "$dest" 2>/dev/null; then
+      # 링크 대신 복사본이 생겼으면 다음 실행 때 덮어쓸 수 있게 표시한다.
+      [ -L "$dest" ] || : > "$dest/.gguk-wiki"
+      results+=("스킬 $name: ${dest}에 설치함")
+    else
+      results+=("스킬 $name: 실패 (${dest}에 링크를 만들 수 없습니다)")
+    fi
+  done
 fi
 
 echo
