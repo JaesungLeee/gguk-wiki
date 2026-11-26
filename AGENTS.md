@@ -12,7 +12,7 @@ GGUK 위키에 정보를 넣고(ingest) 조회할 때 따르는 규칙이다.
 ```text
 raw/                    # 원본. 넣은 뒤 고치거나 지우지 않는다
 ├── meetings/           # 회의록 (파일, 노션 페이지, STT 요약)
-├── specs/              # PRD, 스펙 문서
+├── baseline/           # 이관 기준선 기획서
 └── notes/              # 채팅으로 받은 내용
 wiki/
 ├── decisions/          # 결정 1건 = 파일 1개

@@ -1,6 +1,6 @@
 ---
 name: ingest
-description: GGUK 위키에 회의록, 기획 문서(PRD, 스펙), 노션 페이지, STT 요약, 채팅으로 받은 결정을 넣을 때 쓴다. 원본을 raw/에 남기고 결정·액션 아이템·미결 사항으로 나눠 PR을 만든다.
+description: GGUK 위키에 회의록, 노션 페이지, STT 요약, 채팅으로 받은 결정을 넣을 때 쓴다. 원본을 raw/에 남기고 결정·액션 아이템·미결 사항으로 나눠 PR을 만든다.
 argument-hint: <파일 경로 | 노션 URL | 넣을 내용>
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh *)
