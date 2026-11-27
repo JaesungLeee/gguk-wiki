@@ -1,6 +1,6 @@
 # gguk-wiki
 
-GGUK 프로젝트의 정책, 결정, 회의록, 기획 문서를 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
+GGUK 프로젝트의 정책, 결정, 회의록을 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
 
 처음 쓸 때 [작업 공간을 준비](#작업-공간-준비)한다. Claude Code는 [플러그인을 설치](#플러그인-설치)하고, Codex와 Pi는 [작업 공간 준비만으로 스킬이 설치된다](#codex와-pi). 필요한 도구와 권한은 [필요 조건](docs/plugin.md#필요-조건)에 있다.
 
@@ -86,7 +86,7 @@ claude plugin update gguk-wiki@gguk
 
 | 위치 | 내용 |
 | --- | --- |
-| [`raw/`](raw/) | 원본 자료(회의록, 기획 문서, 채팅). 넣은 뒤 고치지 않는다 |
+| [`raw/`](raw/) | 원본 자료(회의록, 이관 기준선 기획서, 채팅). 넣은 뒤 고치지 않는다 |
 | [`wiki/`](wiki/) | 결정, 액션 아이템, 미결 사항, 용어집. 도메인 페이지와 목차는 CI가 만든다 |
 | [`AGENTS.md`](AGENTS.md) | LLM이 따르는 공통 규칙 |
 | [`procedures/`](procedures/) | 스킬별 규칙: [ingest](procedures/ingest.md), [ask](procedures/ask.md) |

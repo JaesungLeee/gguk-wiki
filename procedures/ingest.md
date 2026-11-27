@@ -9,7 +9,6 @@
   - `wiki/decisions/`: `decided_at`.
   - `wiki/action-items/`, `wiki/open-questions/`: 원본의 `raw/` 아래 경로를 그대로 따른다. 예: `raw/meetings/2026-11-10-결제-정책.md` → `wiki/open-questions/meetings/2026-11-10-결제-정책.md`
 - `raw/`는 마크다운만 받는다. 노션 페이지와 STT 요약도 마크다운으로 저장한다.
-- 기획 문서가 고쳐지면 기존 파일을 바꾸지 않고 새 파일로 다시 넣는다.
 
 ## 공개 범위
 
