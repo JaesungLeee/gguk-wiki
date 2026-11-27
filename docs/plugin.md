@@ -10,7 +10,7 @@
 | `ask` | 위키와 코드 레포 조회 | [procedures/ask.md](../procedures/ask.md) (이유: [retrieval.md](retrieval.md)) |
 
 - `ask` 스킬 설명에 "GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때" 같은 사용 조건을 적는다. 사용자가 명령을 치지 않아도 Claude가 필요할 때 스스로 부르게 하기 위해서다.
-- 훅과 자체 MCP 서버 설정은 넣지 않는다([훅](backlog/hooks.md), [MCP 서버](backlog/mcp-server.md)).
+- 훅과 자체 MCP 서버 설정은 넣지 않는다.
 - 노션 MCP도 플러그인에 넣지 않는다. 넣으면 노션을 쓰지 않는 팀원에게도 인증 안내가 뜬다. 필요한 사람만 직접 추가한다([필요 조건](#필요-조건)).
 - 스킬은 SKILL.md 형식으로 쓴다([다른 LLM 도구 지원](#다른-llm-도구-지원-1단계-확장)).
 
@@ -175,5 +175,5 @@ Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한
 **지원 기준**: `AGENTS.md`와 `procedures/`를 읽고 셸 명령(`git`, `gh`)을 실행할 수 있는 에이전트형 도구면 지원 대상으로 본다.
 
 - 다른 도구는 쓰는 팀원이 나오면 그 도구로 확인한다. `~/.agents/skills/`를 읽는 도구면 공용 스킬을 그대로 쓰고, 아니면 그 도구가 읽는 폴더에 링크를 더한다.
-- 웹 채팅 전용 도구(ChatGPT, Gemini, Claude 웹앱 등)는 로컬 clone을 읽거나 `gh`를 실행할 수 없어 지원하지 않는다. 지원하려면 [MCP 서버](backlog/mcp-server.md)가 필요하다.
+- 웹 채팅 전용 도구(ChatGPT, Gemini, Claude 웹앱 등)는 로컬 clone을 읽거나 `gh`를 실행할 수 없어 지원하지 않는다. 지원하려면 MCP 서버가 필요하다.
 - 에이전트형 도구를 쓸 수 없는 팀원은 설치 안내 때 직접 알린다. 무료 플랜으로는 쓸 수 없는 도구가 있다. 예: Claude Free 플랜은 Claude Code를 쓸 수 없다([필요 조건](#필요-조건)).

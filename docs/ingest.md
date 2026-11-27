@@ -160,7 +160,7 @@ MVP 개발 중에 쌓인 자료를 한 번 옮긴다. MVP까지 구현된 내용
 
 CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 규칙](#main-보호-규칙)).
 
-- 결정 문서의 필수 필드와 `status`·`durability` 값, `platforms`가 1개 이상 있는지. `platforms`가 비면 플랫폼별로 결정을 거르는 기능([MCP 서버](backlog/mcp-server.md), [훅](backlog/hooks.md))에서 그 결정이 어디에도 나오지 않는다
+- 결정 문서의 필수 필드와 `status`·`durability` 값, `platforms`가 1개 이상 있는지. `platforms`가 비면 플랫폼별로 결정을 거르는 기능(MCP 서버, 훅)에서 그 결정이 어디에도 나오지 않는다
 - 결정 파일 이름의 날짜가 `decided_at`과 같은지. 다르면 `log.md`의 순서와 파일 이름이 다른 날짜를 가리킨다
 - 결정 문서의 `source`, `supersedes`, `superseded_by`가 가리키는 파일이 실제로 있는지, `supersedes`·`superseded_by`는 `wiki/decisions/` 아래 결정 문서를 가리키는지. 다른 파일을 가리키면 대신할 결정 없이 결정이 도메인 페이지에서 빠진다
 - `superseded_by`가 경로 하나인지, `supersedes` 목록에 같은 경로가 두 번 있지 않은지. 옛 결정마다 지금 유효한 결정이 하나로 정해져야 한다([결정 문서 형식](data-model.md#결정-문서-형식))
