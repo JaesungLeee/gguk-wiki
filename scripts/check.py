@@ -19,10 +19,13 @@ from wikilib import FormatError, nfc
 DOMAIN_NAME_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
 DATED_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-.+\.md$")
 
-DECISION_REQUIRED = ("title", "status", "decided_at", "domains", "platforms", "source", "durability")
+DECISION_REQUIRED = ("title", "status", "kind", "decided_at", "domains", "platforms", "source", "durability")
 DECISION_STATUS = ("decided", "superseded")
 DURABILITY = ("permanent", "temporal")
 PLATFORMS = ("server", "android", "ios", "design")
+KINDS = ("product", "tech")
+# platform-repository.yml의 url. 레포 이름(마지막 부분)이 작업 공간의 폴더 이름이 된다
+REPOSITORY_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 ACTION_REQUIRED = ("source", "items")
 ACTION_ITEM_REQUIRED = ("task", "status")
@@ -31,7 +34,7 @@ NEW_ACTION_ITEM_REQUIRED = ("task", "assignee", "status")
 ACTION_STATUS = ("open", "done", "dropped")
 
 OPEN_QUESTION_REQUIRED = ("source", "items")
-OPEN_QUESTION_ITEM_REQUIRED = ("question", "domains", "status")
+OPEN_QUESTION_ITEM_REQUIRED = ("question", "domains", "kind", "status")
 OPEN_QUESTION_STATUS = ("open", "resolved", "dropped")
 
 
@@ -51,6 +54,9 @@ class Checker:
         self.domain_names = {d.name for d in wikilib.load_domains(root)}
         self.people = wikilib.load_people(root)
         self.person_names = {p.name for p in self.people}
+        self.repositories = wikilib.load_repositories(root)
+        # `tech` 결정은 코드 레포가 있는 플랫폼 2개 이상에 걸친다. 하나뿐이면 그 레포에서 관리하는 플랫폼 내부 결정이다
+        self.code_platforms = sorted({r.platform for r in self.repositories})
         # 결정 경로 → frontmatter. 대체 관계를 양쪽에서 맞춰 볼 때 쓴다.
         self.decisions: dict[str, dict] = {}
 
@@ -128,6 +134,8 @@ class Checker:
             self.error(rel, "`title`은 문자열이어야 한다")
         if self.present(rel, data, "status"):
             self.one_of(rel, "status", data["status"], DECISION_STATUS)
+        if self.present(rel, data, "kind"):
+            self.one_of(rel, "kind", data["kind"], KINDS)
         if self.present(rel, data, "decided_at"):
             decided_at = wikilib.date_str(data["decided_at"])
             if decided_at is None:
@@ -149,6 +157,8 @@ class Checker:
                     self.error(rel, "`platforms`가 1개 이상 있어야 한다. 하지 않기로 한 결정은 해당 직무를 모두 적는다")
                 for p in platforms:
                     self.one_of(rel, "platforms", p, PLATFORMS)
+                if data.get("kind") == "tech" and len(set(platforms) & set(self.code_platforms)) < 2:
+                    self.error(rel, f"`tech` 결정은 `platforms`에 {', '.join(self.code_platforms)} 중 2개 이상이 있어야 한다. 한 플랫폼 안의 결정은 그 레포에서 관리한다")
         if self.present(rel, data, "source"):
             self.path_exists(rel, "source", data["source"])
         if self.present(rel, data, "durability"):
@@ -267,6 +277,8 @@ class Checker:
             self.present(where, item, "question")
             if "domains" in item:
                 self.domains(where, item["domains"], required=True)
+            if self.present(where, item, "kind"):
+                self.one_of(where, "kind", item["kind"], KINDS)
             if self.present(where, item, "status"):
                 self.one_of(where, "status", item["status"], OPEN_QUESTION_STATUS)
             if item.get("status") == "resolved":
@@ -300,9 +312,25 @@ class Checker:
                     self.error("people.yml", f"GitHub 아이디 `{person.github}`가 두 번 있다")
                 accounts.add(person.github.lower())
 
+    def check_repositories_file(self) -> None:
+        where = "platform-repository.yml"
+        platforms, names = set(), set()
+        for repo in self.repositories:
+            if repo.platform == "design" or repo.platform not in PLATFORMS:
+                self.error(where, f"`platform` 값 `{repo.platform}`은 {', '.join(p for p in PLATFORMS if p != 'design')} 중 하나여야 한다")
+            if repo.platform in platforms:
+                self.error(where, f"플랫폼 `{repo.platform}`이 두 번 있다. 플랫폼마다 레포 하나다")
+            platforms.add(repo.platform)
+            if not REPOSITORY_URL_RE.match(repo.url):
+                self.error(where, f"`url` `{repo.url}`은 `https://github.com/<조직>/<레포>` 형식이어야 한다")
+            elif repo.name.lower() in names:
+                self.error(where, f"레포 이름 `{repo.name}`이 두 번 있다. 작업 공간의 폴더 이름이 겹친다")
+            names.add(repo.name.lower())
+
     def check_docs(self) -> None:
         self.check_domains_file()
         self.check_people_file()
+        self.check_repositories_file()
         for rel, path in wikilib.list_docs(self.root, wikilib.DECISIONS_DIR):
             self.check_decision(rel, path)
         self.check_supersede_links()
@@ -323,7 +351,8 @@ class Checker:
         fields = [f for f in out.split("\0") if f]
         for status, raw_rel in zip(fields[0::2], fields[1::2]):
             rel = nfc(raw_rel)
-            if rel.startswith("raw/") and status in ("M", "D", "T"):
+            # `.gitkeep`은 빈 폴더를 남기는 자리표시자라 원본이 아니다. 폴더 구조를 바꿀 때 지울 수 있다
+            if rel.startswith("raw/") and posixpath.basename(rel) != ".gitkeep" and status in ("M", "D", "T"):
                 action = "지웠다" if status == "D" else "고쳤다"
                 self.error(rel, f"raw/의 기존 파일을 {action}. 원본은 넣은 뒤 고치거나 지우지 않는다")
             if wikilib.is_generated(rel) and status in ("A", "M", "T"):

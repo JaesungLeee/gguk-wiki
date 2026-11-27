@@ -24,7 +24,7 @@ import generate  # noqa: E402
 import wikilib  # noqa: E402
 
 REPO = SCRIPTS.parent
-SOURCE = "raw/specs/2026-11-06-mvp-prd.md"
+SOURCE = "raw/baseline/2026-11-06-mvp-prd.md"
 # domains.yml에 없는 도메인. TempRepo가 실제 domains.yml을 복사하므로 실제 도메인이 될 수 있는 이름(예: payment)은 쓰지 않는다
 UNKNOWN_DOMAIN = "not-a-domain"
 # 테스트용 팀원 목록. 실제 people.yml이 바뀌어도 테스트가 흔들리지 않게 따로 둔다
@@ -36,6 +36,7 @@ SAMPLE = {
     "decided_at": "2026-11-06",
     "source": SOURCE,
     "durability": "permanent",
+    "kind": "product",
     "task": "방 이름 검증 추가",
     "assignee": ["홍길동", wikilib.UNDECIDED_PERSON],
     "question": "방 변경 시 라벨인가 툴팁인가",
@@ -93,6 +94,7 @@ class TempRepo:
         self.dir = tempfile.TemporaryDirectory()
         self.root = Path(self.dir.name)
         shutil.copy(REPO / "domains.yml", self.root / "domains.yml")
+        shutil.copy(REPO / "platform-repository.yml", self.root / "platform-repository.yml")
         self.write("people.yml", PEOPLE)
         self.write(SOURCE, "# MVP PRD\n")
 
@@ -138,6 +140,7 @@ def decision(**overrides) -> dict:
     data = {
         "title": "방 이름 정책",
         "status": "decided",
+        "kind": "product",
         "decided_at": "2026-11-06",
         "domains": ["room"],
         "platforms": ["server", "android", "ios"],
@@ -164,8 +167,8 @@ class TemplateTest(RepoTestCase):
 
     def test_filled_templates_pass(self):
         self.repo.write("wiki/decisions/2026-11-06-방-이름-정책.md", filled_template("decision.md"))
-        self.repo.write("wiki/action-items/specs/2026-11-06-mvp-prd.md", filled_template("action-items.md"))
-        self.repo.write("wiki/open-questions/specs/2026-11-06-mvp-prd.md", filled_template("open-questions.md"))
+        self.repo.write("wiki/action-items/baseline/2026-11-06-mvp-prd.md", filled_template("action-items.md"))
+        self.repo.write("wiki/open-questions/baseline/2026-11-06-mvp-prd.md", filled_template("open-questions.md"))
         self.assertEqual(self.repo.errors(), [])
         generate.generate(self.repo.root)
 
@@ -185,6 +188,8 @@ class TemplateTest(RepoTestCase):
     def test_status_values_match(self):
         self.assertEqual(template_enum("decision.md", "status"), set(check.DECISION_STATUS))
         self.assertEqual(template_enum("decision.md", "durability"), set(check.DURABILITY))
+        self.assertEqual(template_enum("decision.md", "kind"), set(check.KINDS))
+        self.assertEqual(template_enum("open-questions.md", "kind"), set(check.KINDS))
         self.assertEqual(template_enum("action-items.md", "status"), set(check.ACTION_STATUS))
         self.assertEqual(template_enum("open-questions.md", "status"), set(check.OPEN_QUESTION_STATUS))
 
@@ -211,7 +216,7 @@ class CheckTest(RepoTestCase):
         self.repo.doc("wiki/decisions/a.md", decision(status="proposed"))
         self.repo.doc("wiki/decisions/b.md", decision(domains=[]))
         self.repo.doc("wiki/decisions/c.md", decision(domains=[UNKNOWN_DOMAIN]))
-        self.repo.doc("wiki/decisions/d.md", decision(source="raw/specs/없음.md"))
+        self.repo.doc("wiki/decisions/d.md", decision(source="raw/baseline/없음.md"))
         self.repo.doc("wiki/decisions/e.md", decision(durability=..., decided_at="2026-13-01"))
         self.repo.doc("wiki/decisions/f.md", decision(supersedes=None))
         self.repo.doc("wiki/decisions/g.md", decision(platforms=["web"]))
@@ -240,6 +245,19 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "2026-11-07-날짜-다름.md: 파일 이름의 날짜 2026-11-07가 `decided_at` 2026-11-06와 다르다")
         self.assertHasError(errors, "날짜-없음.md: 파일 이름은 `YYYY-MM-DD-제목.md`")
         self.assertHasError(errors, "2026-11-06-플랫폼-없음.md: `platforms`가 1개 이상")
+
+    def test_decision_kind(self):
+        self.repo.doc("wiki/decisions/2026-11-06-종류-없음.md", decision(kind=...))
+        self.repo.doc("wiki/decisions/2026-11-06-종류-틀림.md", decision(kind="contract"))
+        self.repo.doc("wiki/decisions/2026-11-06-한-플랫폼.md", decision(kind="tech", platforms=["android", "design"]))
+        self.repo.doc("wiki/decisions/2026-11-06-공통-계약.md", decision(kind="tech", platforms=["server", "android"]))
+        self.repo.doc("wiki/decisions/2026-11-06-한-플랫폼-기획.md", decision(platforms=["android"]))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "2026-11-06-종류-없음.md: 필수 필드 `kind`")
+        self.assertHasError(errors, "2026-11-06-종류-틀림.md: `kind` 값 `contract`")
+        self.assertHasError(errors, "2026-11-06-한-플랫폼.md: `tech` 결정은 `platforms`에 android, ios, server 중 2개 이상")
+        self.assertFalse(any("공통-계약.md" in e for e in errors), errors)
+        self.assertFalse(any("한-플랫폼-기획.md" in e for e in errors), errors)
 
     def test_supersede_links(self):
         old = "wiki/decisions/2026-10-01-덱.md"
@@ -314,9 +332,9 @@ class CheckTest(RepoTestCase):
 
     def test_links_point_to_decisions(self):
         self.repo.doc("wiki/decisions/2026-11-06-원본-대체.md", decision(status="superseded", superseded_by=SOURCE))
-        self.repo.doc("wiki/open-questions/specs/2026-11-06-mvp-prd.md", {
+        self.repo.doc("wiki/open-questions/baseline/2026-11-06-mvp-prd.md", {
             "source": SOURCE,
-            "items": [{"question": "q", "domains": ["deck"], "status": "resolved", "resolved_by": SOURCE}],
+            "items": [{"question": "q", "domains": ["deck"], "kind": "product", "status": "resolved", "resolved_by": SOURCE}],
         })
         errors = self.repo.errors()
         self.assertHasError(errors, "원본-대체.md: `superseded_by`는 `wiki/decisions/` 아래 결정 문서")
@@ -325,13 +343,13 @@ class CheckTest(RepoTestCase):
     def test_path_mirrors_source(self):
         self.repo.doc("wiki/open-questions/meetings/다른-이름.md", {
             "source": SOURCE,
-            "items": [{"question": "q", "domains": ["deck"], "status": "open", "resolved_by": SOURCE}],
+            "items": [{"question": "q", "domains": ["deck"], "kind": "product", "status": "open", "resolved_by": SOURCE}],
         })
-        self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {
+        self.repo.doc("wiki/action-items/baseline/2026-11-06-mvp-prd.md", {
             "source": SOURCE, "items": [{"task": "t", "assignee": ["홍길동"], "status": "open"}],
         })
         errors = self.repo.errors()
-        self.assertHasError(errors, "다른-이름.md: 경로는 원본 경로를 따라 `wiki/open-questions/specs/2026-11-06-mvp-prd.md`여야 한다")
+        self.assertHasError(errors, "다른-이름.md: 경로는 원본 경로를 따라 `wiki/open-questions/baseline/2026-11-06-mvp-prd.md`여야 한다")
         self.assertHasError(errors, "items[1]: `resolved_by`는 `resolved`일 때만 쓴다")
         self.assertFalse(any("wiki/action-items/" in e for e in errors), errors)
 
@@ -340,6 +358,36 @@ class CheckTest(RepoTestCase):
         errors = self.repo.errors()
         self.assertHasError(errors, "domains.yml: 도메인 이름 `Push_Notification`은 영어 소문자와 하이픈으로 쓴다")
         self.assertHasError(errors, "domains.yml: 도메인 `room`이 두 번 있다")
+
+    def test_repositories_file(self):
+        self.repo.write("platform-repository.yml", (
+            "- platform: server\n  url: https://github.com/org/Server\n"
+            "- platform: server\n  url: https://github.com/org/server-2\n"
+            "- platform: design\n  url: https://github.com/org/design\n"
+            "- platform: android\n  url: git@github.com:org/android.git\n"
+            "- platform: ios\n  url: https://github.com/other/server\n"
+        ))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "platform-repository.yml: 플랫폼 `server`이 두 번 있다")
+        self.assertHasError(errors, "platform-repository.yml: `platform` 값 `design`은")
+        self.assertHasError(errors, "platform-repository.yml: `url` `git@github.com:org/android.git`은")
+        self.assertHasError(errors, "platform-repository.yml: 레포 이름 `server`이 두 번 있다")
+
+    def test_repository_name(self):
+        repo = wikilib.Repository("server", "https://github.com/mash-up-kr/Team-MINO-Node")
+        self.assertEqual(repo.name, "Team-MINO-Node")
+
+    def test_tech_platforms_follow_repositories(self):
+        # 레포가 없는 플랫폼은 `tech` 결정의 2개에 세지 않는다
+        self.repo.write("platform-repository.yml", (
+            "- platform: server\n  url: https://github.com/org/server\n"
+            "- platform: android\n  url: https://github.com/org/android\n"
+        ))
+        self.repo.doc("wiki/decisions/2026-11-06-앱-공통.md", decision(kind="tech", platforms=["android", "ios"]))
+        self.repo.doc("wiki/decisions/2026-11-06-서버-앱.md", decision(kind="tech", platforms=["server", "android"]))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "2026-11-06-앱-공통.md: `tech` 결정은 `platforms`에 android, server 중 2개 이상")
+        self.assertFalse(any("서버-앱.md" in e for e in errors), errors)
 
     def test_people_file(self):
         self.repo.write("people.yml", (
@@ -368,22 +416,26 @@ class CheckTest(RepoTestCase):
         self.assertEqual(result.stderr, "error: people.yml: 2번째 항목에 name과 role이 필요하다\n")
 
     def test_open_question_errors(self):
-        self.repo.doc("wiki/open-questions/specs/x.md", {
+        self.repo.doc("wiki/open-questions/baseline/x.md", {
             "source": SOURCE,
             "items": [
-                {"question": "q1", "domains": ["deck"], "status": "resolved"},
-                {"question": "q2", "domains": ["deck"], "status": "resolved",
+                {"question": "q1", "domains": ["deck"], "kind": "product", "status": "resolved"},
+                {"question": "q2", "domains": ["deck"], "kind": "product", "status": "resolved",
                  "resolved_by": "wiki/decisions/없음.md"},
-                {"question": "q3", "domains": [], "status": "open"},
+                {"question": "q3", "domains": [], "kind": "product", "status": "open"},
+                {"question": "q4", "domains": ["deck"], "status": "open"},
+                {"question": "q5", "domains": ["deck"], "kind": "contract", "status": "open"},
             ],
         })
         errors = self.repo.errors()
         self.assertHasError(errors, "items[1]: `resolved`이면 `resolved_by`")
         self.assertHasError(errors, "items[2]: `resolved_by`가 가리키는 파일")
         self.assertHasError(errors, "items[3]: `domains`가 1개 이상")
+        self.assertHasError(errors, "items[4]: 필수 필드 `kind`")
+        self.assertHasError(errors, "items[5]: `kind` 값 `contract`")
 
     def test_action_item_errors(self):
-        self.repo.doc("wiki/action-items/specs/x.md", {
+        self.repo.doc("wiki/action-items/baseline/x.md", {
             "source": SOURCE,
             "items": [
                 {"task": "t", "status": "closed", "due": "내일"},
@@ -399,7 +451,7 @@ class CheckTest(RepoTestCase):
 
     def test_old_action_items_not_checked(self):
         # 담당자 목록 규칙 전에 들어간 파일. PR에서 바뀌지 않았으면 담당자를 검사하지 않는다
-        old = "wiki/action-items/specs/2026-11-06-mvp-prd.md"
+        old = "wiki/action-items/baseline/2026-11-06-mvp-prd.md"
         self.repo.doc(old, {"source": SOURCE, "items": [
             {"task": "t", "assignee": "디자인 팀", "status": "open"},
             {"task": "t", "status": "open"},
@@ -411,7 +463,7 @@ class CheckTest(RepoTestCase):
         self.assertEqual(self.repo.errors(base="main"), [])
 
     def test_new_action_item_assignee_errors(self):
-        old = "wiki/action-items/specs/2026-11-06-mvp-prd.md"
+        old = "wiki/action-items/baseline/2026-11-06-mvp-prd.md"
         self.repo.doc(old, {"source": SOURCE, "items": [{"task": "t", "assignee": "디자인 팀", "status": "open"}]})
         self.repo.commit_base()
         new_source = "raw/meetings/2026-11-10-회의.md"
@@ -443,7 +495,7 @@ class CheckTest(RepoTestCase):
 
     def test_new_action_item_assignee_values(self):
         self.repo.commit_base()
-        self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {
+        self.repo.doc("wiki/action-items/baseline/2026-11-06-mvp-prd.md", {
             "source": SOURCE,
             "items": [
                 {"task": "t", "assignee": ["홍길동", "김철수"], "status": "open"},
@@ -458,12 +510,14 @@ class CheckTest(RepoTestCase):
     def test_pr_changes(self):
         self.repo.write("raw/meetings/old.md", "원본\n")
         self.repo.write("raw/meetings/gone.md", "원본\n")
+        self.repo.write("raw/specs/.gitkeep", "")
         self.repo.write("raw/notes/2026-11-01-예전-채팅.md", "---\ndate: 2026-11-01\n---\n예전 원본\n")
         self.repo.write("wiki/log.md", "생성\n")
         self.repo.write("wiki/domains/old.md", "생성\n")
         self.repo.commit_base()
         self.repo.write("raw/meetings/old.md", "고침\n")
         (self.repo.root / "raw/meetings/gone.md").unlink()
+        (self.repo.root / "raw/specs/.gitkeep").unlink()
         self.repo.write("raw/meetings/new.md", "새 원본\n")
         self.repo.write("raw/notes/2026-11-06-작성자-있음.md", filled_template("note.md"))
         self.repo.write("raw/notes/2026-11-06-작성자-빔.md", "---\ndate: 2026-11-06\nauthor:\n---\n메시지\n")
@@ -486,6 +540,7 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "raw/notes/2026-11-06-작성자-여럿.md: `author` 값")
         self.assertFalse(any(n in e for e in errors for n in ("작성자-있음", "작성자-알-수-없음", "예전-채팅")), errors)
         self.assertFalse(any("raw/meetings/new.md" in e for e in errors))
+        self.assertFalse(any(".gitkeep" in e for e in errors), errors)
         self.assertFalse(any("wiki/log.md" in e for e in errors))
 
 
@@ -499,12 +554,15 @@ class GenerateTest(RepoTestCase):
             title="덱 최대 10장", domains=["deck"], supersedes="wiki/decisions/2026-10-01-덱-장수.md"))
         self.repo.doc("wiki/decisions/2026-11-06-합류-알림.md", decision(
             title="합류 | 푸시", domains=["invitation", "notification"]))
-        self.repo.doc("wiki/open-questions/specs/2026-11-06-mvp-prd.md", {"source": SOURCE, "items": [
-            {"question": "라벨인가 툴팁인가", "domains": ["deck"], "status": "open"},
-            {"question": "풀린 질문", "domains": ["deck"], "status": "resolved",
+        self.repo.doc("wiki/decisions/2026-11-06-초대-실패-응답.md", decision(
+            title="초대 실패 응답 형식", kind="tech", domains=["invitation"], platforms=["server", "android", "ios"]))
+        self.repo.doc("wiki/open-questions/baseline/2026-11-06-mvp-prd.md", {"source": SOURCE, "items": [
+            {"question": "라벨인가 툴팁인가", "domains": ["deck"], "kind": "product", "status": "open"},
+            {"question": "정렬 기준을 서버가 주나", "domains": ["deck"], "kind": "tech", "status": "open"},
+            {"question": "풀린 질문", "domains": ["deck"], "kind": "product", "status": "resolved",
              "resolved_by": "wiki/decisions/2026-11-06-덱-장수.md"},
         ]})
-        self.repo.doc("wiki/action-items/specs/2026-11-06-mvp-prd.md", {"source": SOURCE, "items": [
+        self.repo.doc("wiki/action-items/baseline/2026-11-06-mvp-prd.md", {"source": SOURCE, "items": [
             {"task": "기한 없음", "assignee": [wikilib.UNDECIDED_PERSON], "status": "open"},
             {"task": "늦은 일", "assignee": ["홍길동", "김철수"], "status": "open", "due": "2026-12-01"},
             {"task": "이른 일", "assignee": ["김철수"], "status": "open", "due": "2026-11-20"},
@@ -523,8 +581,11 @@ class GenerateTest(RepoTestCase):
         self.assertIn("## 결정 (1)", page)
         self.assertIn("[덱 최대 10장](../decisions/2026-11-06-덱-장수.md)", page)
         self.assertNotIn("덱 8장", page)
-        self.assertIn("## 미결 (1)", page)
-        self.assertIn("- 라벨인가 툴팁인가 ([원본](../../raw/specs/2026-11-06-mvp-prd.md))", page)
+        self.assertIn("| [덱 최대 10장](../decisions/2026-11-06-덱-장수.md) | 기획 | 2026-11-06 |", page)
+        self.assertIn("## 미결 (2)", page)
+        self.assertIn("- [기획] 라벨인가 툴팁인가 ([원본](../../raw/baseline/2026-11-06-mvp-prd.md))", page)
+        self.assertIn("- [기술] 정렬 기준을 서버가 주나", page)
+        self.assertIn("| [초대 실패 응답 형식](../decisions/2026-11-06-초대-실패-응답.md) | 기술 |", self.outputs["wiki/domains/invitation.md"])
         self.assertNotIn("풀린 질문", page)
         # 여러 도메인에 걸친 결정은 각 도메인 페이지에 나온다
         self.assertIn("합류 \\| 푸시", self.outputs["wiki/domains/invitation.md"])
@@ -533,7 +594,7 @@ class GenerateTest(RepoTestCase):
 
     def test_index(self):
         index = self.outputs["wiki/index.md"]
-        self.assertIn("| [deck](domains/deck.md) | 홈 카드 덱 구성, 정렬, 라벨 | 1 | 1 |", index)
+        self.assertIn("| [deck](domains/deck.md) | 홈 카드 덱 구성, 정렬, 라벨 | 1 | 2 |", index)
         names = [d.name for d in wikilib.load_domains(self.repo.root)]
         self.assertEqual(re.findall(r"^\| \[([\w-]+)\]", index, re.M), names)
 
@@ -542,6 +603,7 @@ class GenerateTest(RepoTestCase):
         rows = [line for line in log.splitlines() if line.startswith("| 2026")]
         self.assertTrue(rows[-1].startswith("| 2026-10-01"))
         self.assertIn("대체됨 → [덱 최대 10장](decisions/2026-11-06-덱-장수.md)", rows[-1])
+        self.assertIn("| [초대 실패 응답 형식](decisions/2026-11-06-초대-실패-응답.md) | 기술 | invitation | 유효 |", log)
 
     def test_log_many_superseded(self):
         new = "wiki/decisions/2026-11-06-방-정책.md"

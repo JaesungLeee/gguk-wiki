@@ -18,6 +18,7 @@ import wikilib
 from wikilib import Domain
 
 HEADER = "<!-- 자동 생성 파일. 직접 수정하지 않는다. scripts/generate.py가 만든다. -->\n"
+KIND_LABELS = {"product": "기획", "tech": "기술"}
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class Decision:
     path: str
     title: str
     status: str
+    kind: str
     decided_at: str
     domains: tuple[str, ...]
     platforms: tuple[str, ...]
@@ -35,6 +37,7 @@ class Decision:
 class OpenQuestion:
     question: str
     domains: tuple[str, ...]
+    kind: str
     source: str
 
 
@@ -64,6 +67,7 @@ def load_decisions(root: Path) -> list[Decision]:
                 path=rel,
                 title=str(data["title"]),
                 status=data["status"],
+                kind=data["kind"],
                 decided_at=wikilib.date_str(data["decided_at"]),
                 domains=tuple(data["domains"]),
                 platforms=tuple(data.get("platforms") or ()),
@@ -82,7 +86,7 @@ def load_open_questions(root: Path) -> list[OpenQuestion]:
         data = wikilib.parse_frontmatter(path)
         for item in data["items"]:
             if item["status"] == "open":
-                questions.append(OpenQuestion(str(item["question"]), tuple(item["domains"]), data["source"]))
+                questions.append(OpenQuestion(str(item["question"]), tuple(item["domains"]), item["kind"], data["source"]))
     return questions
 
 
@@ -111,17 +115,17 @@ def domain_page(domain: Domain, decisions: list[Decision], questions: list[OpenQ
     here = wikilib.DOMAIN_PAGES_DIR
     lines = [HEADER, f"# {domain.name}\n", f"{domain.scope}\n", f"## 결정 ({len(decisions)})\n"]
     if decisions:
-        lines.append("| 결정 | 결정일 | 플랫폼 |")
-        lines.append("| --- | --- | --- |")
+        lines.append("| 결정 | 종류 | 결정일 | 플랫폼 |")
+        lines.append("| --- | --- | --- | --- |")
         for d in decisions:
-            lines.append(f"| {link(d.title, d.path, here)} | {d.decided_at} | {cell(', '.join(d.platforms))} |")
+            lines.append(f"| {link(d.title, d.path, here)} | {KIND_LABELS[d.kind]} | {d.decided_at} | {cell(', '.join(d.platforms))} |")
         lines.append("")
     else:
         lines.append("없음\n")
     lines.append(f"## 미결 ({len(questions)})\n")
     if questions:
         for q in questions:
-            lines.append(f"- {cell(q.question)} ({link('원본', q.source, here)})")
+            lines.append(f"- [{KIND_LABELS[q.kind]}] {cell(q.question)} ({link('원본', q.source, here)})")
         lines.append("")
     else:
         lines.append("없음\n")
@@ -143,14 +147,14 @@ def log_page(decisions: list[Decision]) -> str:
     if not decisions:
         lines.append("없음")
         return "\n".join(lines) + "\n"
-    lines += ["| 결정일 | 결정 | 도메인 | 상태 |", "| --- | --- | --- | --- |"]
+    lines += ["| 결정일 | 결정 | 종류 | 도메인 | 상태 |", "| --- | --- | --- | --- | --- |"]
     for d in decisions:
         if d.status == "superseded":
             new = by_path.get(wikilib.nfc(d.superseded_by or ""))
             state = f"대체됨 → {link(new.title, new.path, 'wiki')}" if new else "대체됨"
         else:
             state = "유효"
-        lines.append(f"| {d.decided_at} | {link(d.title, d.path, 'wiki')} | {cell(', '.join(d.domains))} | {state} |")
+        lines.append(f"| {d.decided_at} | {link(d.title, d.path, 'wiki')} | {KIND_LABELS[d.kind]} | {cell(', '.join(d.domains))} | {state} |")
     return "\n".join(lines) + "\n"
 
 

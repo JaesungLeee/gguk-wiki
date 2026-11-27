@@ -10,7 +10,7 @@
 | `ask` | 위키와 코드 레포 조회 | [procedures/ask.md](../procedures/ask.md) (이유: [retrieval.md](retrieval.md)) |
 
 - `ask` 스킬 설명에 "GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때" 같은 사용 조건을 적는다. 사용자가 명령을 치지 않아도 Claude가 필요할 때 스스로 부르게 하기 위해서다.
-- 훅과 자체 MCP 서버 설정은 넣지 않는다([훅](backlog/hooks.md), [MCP 서버](backlog/mcp-server.md)).
+- 훅과 자체 MCP 서버 설정은 넣지 않는다.
 - 노션 MCP도 플러그인에 넣지 않는다. 넣으면 노션을 쓰지 않는 팀원에게도 인증 안내가 뜬다. 필요한 사람만 직접 추가한다([필요 조건](#필요-조건)).
 - 스킬은 SKILL.md 형식으로 쓴다([다른 LLM 도구 지원](#다른-llm-도구-지원-1단계-확장)).
 
@@ -20,8 +20,8 @@ ingest와 조회 규칙은 위키 레포의 `AGENTS.md`(공통)와 `procedures/`
 
 | 스킬 | 주입하는 파일 |
 | --- | --- |
-| `ask` | `AGENTS.md`, `procedures/ask.md` |
-| `ingest` | `AGENTS.md`, `procedures/ingest.md`, `domains.yml`, `people.yml`, `templates/` 4개(결정, 액션 아이템, 미결, 채팅 원본) |
+| `ask` | `AGENTS.md`, `procedures/ask.md`, `platform-repository.yml` |
+| `ingest` | `AGENTS.md`, `procedures/ingest.md`, `domains.yml`, `people.yml`, `platform-repository.yml`, `templates/` 4개(결정, 액션 아이템, 미결, 채팅 원본) |
 
 ```markdown
 ---
@@ -38,6 +38,7 @@ allowed-tools:
 - 스크립트는 읽기 전에 위키 clone을 fetch한다. 마지막 fetch 뒤에 바뀐 규칙도 바로 주입하기 위해서다. 약 0.5초 걸리고, 실패하면(오프라인) 마지막으로 받은 상태를 읽는다. 주입 맨 위에 기준 커밋과 fetch 결과를 표시한다.
 - 규칙을 스킬별로 나눈 것은 주입량을 줄이기 위해서다. 한 파일(약 10,400자)일 때 ask는 필요 없는 ingest 규칙까지 받았다. 나눈 뒤 ask는 약 3,700자, ingest는 템플릿을 포함해 약 10,400자, 위키 레포 세션(`CLAUDE.md`)은 약 1,600자를 읽는다(2026-11-12 기준).
 - ask는 `domains.yml`을 주입하지 않는다. 조회 1단계가 읽는 `wiki/index.md`에 도메인 이름과 범위가 있다.
+- 두 스킬 모두 `platform-repository.yml`을 주입한다. ask는 코드 조회에서, ingest는 [용어집 반영](ingest.md#용어집-반영)에서 레포를 찾는다. 규칙에 레포 이름을 적지 않으므로 목록이 없으면 레포를 찾을 수 없다.
 - 상황에 맞는 파일만 LLM이 골라 읽게 하는 안은 제외했다. 읽지 않고 넘어가면 규칙이 빠지고, STT 공유 URL처럼 한 번 올라가면 되돌릴 수 없는 실수가 생긴다.
 - Claude Code의 `.claude/rules/`는 쓰지 않는다. `paths`가 없는 규칙은 그 레포 세션마다 로드되고, `paths`가 있는 규칙은 Claude가 일치하는 파일을 읽을 때만 로드된다([Claude Code 메모리 문서](https://code.claude.com/docs/en/memory)). 코드 레포에서 부른 스킬에는 적용되지 않고, 작업 폴더를 읽으며, 다른 LLM 도구는 읽지 못한다. 같은 문서도 여러 단계로 된 절차는 skill로 옮기라고 안내한다.
 - 규칙을 SKILL.md 본문에 직접 쓰지 않는 것은, 플러그인을 업데이트해야 바뀌어 팀원마다 다른 규칙을 쓸 수 있기 때문이다.
@@ -104,6 +105,7 @@ ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해
 
 - `GGUK_HOME`이 없으면 스크립트가 든 위키 clone의 상위 폴더를 작업 공간으로 쓴다. `GGUK_HOME`이 그 위치와 다르면 안내하고 `GGUK_HOME`을 쓴다.
 - 작업 공간 위치를 기록하지 못하면 실패로 요약하고 `GGUK_HOME` 설정을 안내한다.
+- clone할 레포는 위키 clone의 `platform-repository.yml`에서 읽는다. 레포를 추가하거나 이름을 바꾸면 이 파일만 고친다. 스크립트가 git만 요구하므로 YAML 라이브러리 없이 `url:` 줄만 읽는다. 이름이 바뀐 레포는 새 이름으로 clone되고, 옛 폴더는 남는다.
 - `gh`가 없거나 로그인되어 있지 않아도 멈추지 않고 안내만 한다. 조회는 `gh` 없이 쓸 수 있고, 코드 레포가 모두 public이라 clone에 로그인이 필요 없다.
 - Windows에서는 `core.longpaths=true`로 clone한다. 경로가 길면 checkout이 실패하기 때문이다.
 - 한 레포가 실패해도 나머지를 계속 진행하고, 마지막에 레포별 상태를 요약한다. 일부만 실패했을 때 무엇을 다시 할지 알 수 있게 하기 위해서다.
@@ -175,5 +177,5 @@ Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한
 **지원 기준**: `AGENTS.md`와 `procedures/`를 읽고 셸 명령(`git`, `gh`)을 실행할 수 있는 에이전트형 도구면 지원 대상으로 본다.
 
 - 다른 도구는 쓰는 팀원이 나오면 그 도구로 확인한다. `~/.agents/skills/`를 읽는 도구면 공용 스킬을 그대로 쓰고, 아니면 그 도구가 읽는 폴더에 링크를 더한다.
-- 웹 채팅 전용 도구(ChatGPT, Gemini, Claude 웹앱 등)는 로컬 clone을 읽거나 `gh`를 실행할 수 없어 지원하지 않는다. 지원하려면 [MCP 서버](backlog/mcp-server.md)가 필요하다.
+- 웹 채팅 전용 도구(ChatGPT, Gemini, Claude 웹앱 등)는 로컬 clone을 읽거나 `gh`를 실행할 수 없어 지원하지 않는다. 지원하려면 MCP 서버가 필요하다.
 - 에이전트형 도구를 쓸 수 없는 팀원은 설치 안내 때 직접 알린다. 무료 플랜으로는 쓸 수 없는 도구가 있다. 예: Claude Free 플랜은 Claude Code를 쓸 수 없다([필요 조건](#필요-조건)).

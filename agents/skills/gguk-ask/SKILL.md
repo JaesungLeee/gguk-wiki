@@ -1,11 +1,11 @@
 ---
 name: gguk-ask
-description: GGUK의 정책, 결정, 기획 의도, 미결 사항, 액션 아이템, 다른 플랫폼(Node, Android, iOS) 구현을 물을 때 쓴다. 위키의 default 브랜치를 읽고, 구현을 묻거나 대조를 요청하면 코드 레포의 default 브랜치도 읽어 출처를 붙여 답한다.
+description: GGUK의 정책, 결정, 기획 의도, 플랫폼 간 계약, 미결 사항, 액션 아이템, 다른 플랫폼(Node, Android, iOS) 구현을 물을 때 쓴다. 위키의 default 브랜치를 읽고, 구현을 묻거나 대조를 요청하면 코드 레포의 default 브랜치도 읽어 출처를 붙여 답한다.
 ---
-가장 먼저 아래 명령을 실행해 GGUK 위키 default 브랜치의 공통 규칙(`AGENTS.md`)과 조회 규칙(`procedures/ask.md`)을 읽는다. 다른 파일을 읽거나 답하기 전에 실행하고, 출력된 규칙을 따라 질문에 답한다.
+가장 먼저 아래 명령을 실행해 GGUK 위키 default 브랜치의 공통 규칙(`AGENTS.md`), 조회 규칙(`procedures/ask.md`), 코드 레포 목록(`platform-repository.yml`)을 읽는다. 다른 파일을 읽거나 답하기 전에 실행하고, 출력된 규칙을 따라 질문에 답한다.
 
 ```bash
-bash -c 'r="${XDG_CONFIG_HOME:-$HOME/.config}/gguk/home"; [ -z "${GGUK_HOME:-}" ] && [ -f "$r" ] && IFS= read -r GGUK_HOME < "$r"; s="${GGUK_HOME:-$HOME/gguk}/gguk-wiki/plugin/scripts/wiki-show.sh"; if [ -f "$s" ]; then bash "$s" "$@"; else echo "[GGUK 위키 규칙을 읽지 못함]"; echo; echo "위키 clone이 없습니다. README의 작업 공간 준비를 따라 위키를 clone하고 scripts/setup-workspace.sh를 실행하세요."; fi' _ AGENTS.md procedures/ask.md
+bash -c 'r="${XDG_CONFIG_HOME:-$HOME/.config}/gguk/home"; [ -z "${GGUK_HOME:-}" ] && [ -f "$r" ] && IFS= read -r GGUK_HOME < "$r"; s="${GGUK_HOME:-$HOME/gguk}/gguk-wiki/plugin/scripts/wiki-show.sh"; if [ -f "$s" ]; then bash "$s" "$@"; else echo "[GGUK 위키 규칙을 읽지 못함]"; echo; echo "위키 clone이 없습니다. README의 작업 공간 준비를 따라 위키를 clone하고 scripts/setup-workspace.sh를 실행하세요."; fi' _ AGENTS.md procedures/ask.md platform-repository.yml
 ```
 
 - 출력 맨 위가 `[GGUK 위키 규칙을 읽지 못함]`이면 규칙 없이 진행하지 않는다. 다른 작업을 하지 말고 그 안내를 사용자에게 그대로 전한 뒤 멈춘다.

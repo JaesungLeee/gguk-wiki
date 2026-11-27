@@ -7,11 +7,13 @@
 위키와 코드 레포 모두 각 레포의 GitHub default 브랜치(`origin/HEAD`)를 읽는다. 작업 폴더는 읽지 않는다.
 
 ```bash
-git -C ~/gguk/Team-MINO-Node fetch --quiet origin
-git -C ~/gguk/Team-MINO-Node remote set-head origin --auto     # default 브랜치 변경을 따라간다
-git -C ~/gguk/Team-MINO-Node grep -n -I RefundPolicy origin/HEAD
-git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
+git -C ~/gguk/<레포> fetch --quiet origin
+git -C ~/gguk/<레포> remote set-head origin --auto     # default 브랜치 변경을 따라간다
+git -C ~/gguk/<레포> grep -n -I RefundPolicy origin/HEAD
+git -C ~/gguk/<레포> show origin/HEAD:<경로>
 ```
+
+- 코드 레포는 [`platform-repository.yml`](../platform-repository.yml)에 플랫폼마다 하나 있다. `<레포>`는 그 `url`의 마지막 부분이다. 규칙의 "서버 레포", "iOS 레포"는 이 목록의 `platform`이 `server`, `ios`인 레포다.
 
 - 위키는 질문마다 fetch한다. 코드 레포는 같은 세션에서 직전 fetch 후 일정 시간이 지나지 않았으면 fetch를 생략한다.
 - 방금 ingest한 내용도 merge 전이면 위키에 없는 것으로 답한다.
@@ -26,6 +28,7 @@ git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
 5. 대체된 결정(`status: superseded`)은 빼고 답한다. 이력을 묻는 질문일 때만 넣고 `(대체됨 → 새 결정 경로)`를 함께 표시한다.
 6. 위키에서 답을 찾지 못하면 없다고 답한다. 추측으로 채우지 않는다.
 
+- 결정과 미결의 `kind`를 본다. 계약이나 기술을 묻지 않으면 `product`로 답하고, 관련 `tech` 결정은 제목과 경로만 한 줄로 알린다. 계약이나 기술을 물으면 `tech`로 답한다.
 - 미결을 물으면 도메인 페이지의 미결 목록을 읽는다.
 - 최근 바뀐 결정을 물으면 `wiki/log.md`를 읽는다.
 - 액션 아이템을 물으면 `wiki/action-items.md`를 읽는다. 기한이 지났는지는 오늘 날짜로 판단해 답에 표시한다.
@@ -47,23 +50,29 @@ git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
 코드는 다음 경우에만 읽는다. 정책, 결정, 미결, 액션 아이템만 물으면 위키로 답하고 코드 레포는 fetch하지 않는다.
 
 - 구현을 물을 때. 플랫폼(서버, Node, Android, iOS)이나 심볼명을 가리키거나, "실제로", "구현", "코드에서"처럼 현재 동작을 묻는 질문이다.
-- 사용자가 위키와 코드를 대조해 달라고 할 때. 플랫폼을 가리키지 않으면 세 레포를 모두 찾는다.
+- 사용자가 위키와 코드를 대조해 달라고 할 때. 플랫폼을 가리키지 않으면 목록의 레포를 모두 찾는다.
 
 | 질문 | 코드 조회 |
 | --- | --- |
 | 환불 기한은 어떻게 되나요? | 하지 않는다. 위키로 답한다 |
-| 서버에서 환불 기한 어떻게 계산해? | Team-MINO-Node |
-| 환불 기한이 실제 구현과 맞아? | 세 레포 |
-| iOS는 푸시 토큰을 언제 서버에 보내? | Team-MINO-iOS만. 위키 없이 코드만 물어도 된다 |
+| 서버에서 환불 기한 어떻게 계산해? | 서버 레포 |
+| 환불 기한이 실제 구현과 맞아? | 모든 레포 |
+| iOS는 푸시 토큰을 언제 서버에 보내? | iOS 레포만. 위키 없이 코드만 물어도 된다 |
+| 실패 응답 형식은 어떻게 정했어? | 하지 않는다. 위키의 `tech` 결정으로 답한다 |
+| 실패 응답 형식이 서버 명세와 맞아? | 서버 레포의 API 명세와 코드. 받아 쓰는 플랫폼을 물으면 그 레포도 |
 
-- 레포는 `~/gguk/` 아래의 `Team-MINO-Node`, `Team-MINO-Android`, `Team-MINO-iOS`다. 없으면 `scripts/setup-workspace.sh` 실행을 안내한다.
+- 레포는 `~/gguk/<레포>`에 있다. 없으면 `scripts/setup-workspace.sh` 실행을 안내한다.
+- 계약의 구현을 물으면 서버 레포의 API 명세도 읽는다. 명세는 경로가 아니라 내용으로 찾는다: 서버 레포에서 `git grep -l -I -E '^(openapi|swagger):' origin/HEAD`
+  - 찾지 못하면 "API 명세를 서버 레포 default 브랜치에서 찾지 못함"으로 표시하고 컨트롤러·DTO 코드로 답한다.
+  - 위키의 계약 결정, 명세, 코드 중 서로 다른 것이 있으면 불일치로 표시하고 모두 출처를 붙인다.
+- 코드 레포의 문서(Node PRD, ADR 등)는 그 플랫폼의 기록이라 팀 결정으로 답하지 않는다. 인용하면 "Node PRD에 따르면"처럼 출처를 밝히고, 위키나 코드와 다르면 불일치로 표시한다.
 - 구현 위치(경로, 줄 번호)는 위키에 적지 않는다. 조회할 때마다 코드에서 찾는다.
-- 용어집의 심볼이 코드에서 찾히지 않으면 "용어집 심볼 `SavedRoom`을 Team-MINO-Node default 브랜치에서 찾지 못함"으로 표시하고, 영어 직역과 동의어로 다시 찾는다. 새 이름을 찾으면 용어집 수정을 제안만 한다. 반영은 채팅 입력으로 ingest한다.
+- 용어집의 심볼이 코드에서 찾히지 않으면 "용어집 심볼 `SavedRoom`을 <레포> default 브랜치에서 찾지 못함"으로 표시하고, 영어 직역과 동의어로 다시 찾는다. 새 이름을 찾으면 용어집 수정을 제안만 한다. 반영은 채팅 입력으로 ingest한다.
 
 ## 답변 형식
 
 1. 참조한 위키 페이지, 원본(`raw/`), 날짜를 붙인다.
-2. 코드는 `레포:경로 (브랜치 @ 짧은 커밋 SHA)`로 출처를 붙인다. 예: `Team-MINO-Node:src/.../refund.ts (main @ a1b2c3d)`
+2. 코드는 `레포:경로 (브랜치 @ 짧은 커밋 SHA)`로 출처를 붙인다. 예: `<레포>:src/.../refund.ts (main @ a1b2c3d)`
 3. 코드를 읽었는데 위키와 다르면 불일치로 표시하고 양쪽 출처를 모두 붙인다.
 4. 코드를 읽었는데 위키에 결정이 없으면 결정이 없다는 것과 현재 구현을 나눠 답한다. 구현을 정책처럼 쓰지 않는다.
 5. 위키로만 답했으면 끝에 코드와 대조할 수 있다고 한 줄 덧붙인다.

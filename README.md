@@ -1,6 +1,6 @@
 # gguk-wiki
 
-GGUK 프로젝트의 정책, 결정, 회의록, 기획 문서를 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
+GGUK 프로젝트의 정책, 결정(플랫폼 공통 계약·기술 결정 포함), 회의록을 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
 
 처음 쓸 때 [작업 공간을 준비](#작업-공간-준비)한다. Claude Code는 [플러그인을 설치](#플러그인-설치)하고, Codex와 Pi는 [작업 공간 준비만으로 스킬이 설치된다](#codex와-pi). 필요한 도구와 권한은 [필요 조건](docs/plugin.md#필요-조건)에 있다.
 
@@ -86,13 +86,14 @@ claude plugin update gguk-wiki@gguk
 
 | 위치 | 내용 |
 | --- | --- |
-| [`raw/`](raw/) | 원본 자료(회의록, 기획 문서, 채팅). 넣은 뒤 고치지 않는다 |
+| [`raw/`](raw/) | 원본 자료(회의록, 이관 기준선 기획서, 채팅). 넣은 뒤 고치지 않는다 |
 | [`wiki/`](wiki/) | 결정, 액션 아이템, 미결 사항, 용어집. 도메인 페이지와 목차는 CI가 만든다 |
 | [`AGENTS.md`](AGENTS.md) | LLM이 따르는 공통 규칙 |
 | [`procedures/`](procedures/) | 스킬별 규칙: [ingest](procedures/ingest.md), [ask](procedures/ask.md) |
 | [`templates/`](templates/) | 문서 형식. [회의록 템플릿](templates/meeting.md)은 노션 템플릿으로 복사해 쓴다 |
 | [`domains.yml`](domains.yml) | 도메인 목록 |
 | [`people.yml`](people.yml) | 팀원 목록. 채팅 원본의 말한 사람(`author`)과 액션 아이템 담당자(`assignee`)를 이 이름으로 적는다. 목록에 없는 사람은 "알 수 없음" |
+| [`platform-repository.yml`](platform-repository.yml) | 플랫폼별 코드 레포 목록. 설정 스크립트가 이 목록으로 clone하고, 스킬이 이 목록으로 레포를 찾는다 |
 | [`scripts/`](scripts/) | 생성 파일 만들기, 형식 검사, 작업 공간 설정 스크립트 |
 | [`plugin/`](plugin/) | Claude Code 플러그인(ingest, ask 스킬). 마켓플레이스 정의는 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
 | [`agents/skills/`](agents/skills/) | Codex·Pi용 스킬(`gguk-ingest`, `gguk-ask`) |

@@ -1,0 +1,8 @@
+# GGUK 플랫폼별 코드 레포 목록. platform은 결정의 platforms 값(design 제외)이고 플랫폼마다 레포 하나다.
+# 레포 이름은 url의 마지막 부분이다. 작업 공간의 <작업 공간>/<레포 이름>에 clone한다(scripts/setup-workspace.sh).
+- platform: server
+  url: https://github.com/mash-up-kr/Team-MINO-Node
+- platform: android
+  url: https://github.com/mash-up-kr/Team-MINO-Android
+- platform: ios
+  url: https://github.com/mash-up-kr/Team-MINO-iOS
