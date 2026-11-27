@@ -173,9 +173,10 @@ CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 �
 - 미결 파일의 필수 필드와 `status` 값, `source`가 가리키는 파일이 실제로 있는지, `resolved`이면 `resolved_by`가 있고 그 파일이 실제로 있는 결정 문서인지, `resolved`가 아니면 `resolved_by`가 없는지
 - 액션 아이템·미결 파일의 경로가 원본의 `raw/` 아래 경로를 따르는지. 어긋나면 한 원본의 항목이 여러 파일로 흩어진다
 - `domains` 값이 `domains.yml`에 있는지, 결정과 미결 항목에 `domains`가 1개 이상 있는지
-- 결정과 미결 항목의 `kind` 값, `tech` 결정의 `platforms`에 server·android·ios 중 2개 이상이 있는지. 하나뿐인 `tech` 결정은 그 레포에서 관리할 플랫폼 내부 결정이다([결정 종류](data-model.md#결정-문서-형식))
+- 결정과 미결 항목의 `kind` 값, `tech` 결정의 `platforms`에 코드 레포가 있는 플랫폼(`platform-repository.yml`) 2개 이상이 있는지. 하나뿐인 `tech` 결정은 그 레포에서 관리할 플랫폼 내부 결정이다([결정 종류](data-model.md#결정-문서-형식))
 - `domains.yml`의 이름이 영어 소문자와 하이픈으로 되어 있고 겹치지 않는지
 - `people.yml`의 `name`, `github`가 겹치지 않는지, `role`이 `platforms`와 같은 값인지, `name`이 "알 수 없음"·"미정"이 아닌지
+- `platform-repository.yml`의 `platform`이 `platforms` 값(`design` 제외)이고 겹치지 않는지, `url`이 `https://github.com/<조직>/<레포>` 형식이고 레포 이름이 겹치지 않는지. 레포 이름이 작업 공간의 폴더 이름이 되므로 겹치면 한 레포만 clone된다
 - 새로 추가한 채팅 원본(`raw/notes/`)에 `author`가 있고, `people.yml`의 `name`이나 "알 수 없음"인지. 원본은 넣은 뒤 고칠 수 없어, 빠지거나 목록 밖 이름으로 merge되면 다시 고칠 수 없다
 - `raw/`의 기존 파일을 고치거나 지우지 않았는지
 - 생성 파일(`wiki/domains/`, `index.md`, `log.md`, `action-items.md`)을 추가하거나 고치지 않았는지. PR에서 고친 내용은 merge 뒤 CI가 덮어써 조용히 사라지기 때문이다. 삭제는 허용한다. 생성 파일을 없앨 때 남은 파일을 지울 수 있어야 하고, 잘못 지워도 CI가 다시 만든다

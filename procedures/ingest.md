@@ -210,9 +210,9 @@
 [`wiki/glossary.md`](../wiki/glossary.md)는 결정을 반영할 때 함께 채운다. 직역으로 코드에서 찾을 수 없는 용어만 적는다.
 
 1. 반영할 결정에서 용어집에 없는 기획 용어를 뽑는다.
-2. 영어 직역과 동의어로 코드 레포 3개의 default 브랜치에서 정의문을 찾는다.
+2. 영어 직역과 동의어로 코드 레포([`platform-repository.yml`](../platform-repository.yml))마다 default 브랜치에서 정의문을 찾는다. `<레포>`는 `url`의 마지막 부분이다.
    ```bash
-   git -C ~/gguk/Team-MINO-Node grep -n -I -i -E \
+   git -C ~/gguk/<레포> grep -n -I -i -E \
      '(class|interface|object|struct|enum|protocol|fun|func|function)[[:space:]]+[[:alnum:]_]*refund' origin/HEAD
    ```
 3. 찾은 이름이 직역과 다르거나 플랫폼마다 다르면, 근거 위치와 함께 "용어집 후보"로 보여 준다. 직역으로 찾히면 넣지 않는다.

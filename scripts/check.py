@@ -24,8 +24,8 @@ DECISION_STATUS = ("decided", "superseded")
 DURABILITY = ("permanent", "temporal")
 PLATFORMS = ("server", "android", "ios", "design")
 KINDS = ("product", "tech")
-# `tech` 결정은 이 중 2개 이상에 걸친다. 하나뿐이면 그 레포에서 관리하는 플랫폼 내부 결정이다
-CODE_PLATFORMS = ("server", "android", "ios")
+# platform-repository.yml의 url. 레포 이름(마지막 부분)이 작업 공간의 폴더 이름이 된다
+REPOSITORY_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 ACTION_REQUIRED = ("source", "items")
 ACTION_ITEM_REQUIRED = ("task", "status")
@@ -54,6 +54,9 @@ class Checker:
         self.domain_names = {d.name for d in wikilib.load_domains(root)}
         self.people = wikilib.load_people(root)
         self.person_names = {p.name for p in self.people}
+        self.repositories = wikilib.load_repositories(root)
+        # `tech` 결정은 코드 레포가 있는 플랫폼 2개 이상에 걸친다. 하나뿐이면 그 레포에서 관리하는 플랫폼 내부 결정이다
+        self.code_platforms = sorted({r.platform for r in self.repositories})
         # 결정 경로 → frontmatter. 대체 관계를 양쪽에서 맞춰 볼 때 쓴다.
         self.decisions: dict[str, dict] = {}
 
@@ -154,8 +157,8 @@ class Checker:
                     self.error(rel, "`platforms`가 1개 이상 있어야 한다. 하지 않기로 한 결정은 해당 직무를 모두 적는다")
                 for p in platforms:
                     self.one_of(rel, "platforms", p, PLATFORMS)
-                if data.get("kind") == "tech" and len(set(platforms) & set(CODE_PLATFORMS)) < 2:
-                    self.error(rel, "`tech` 결정은 `platforms`에 server, android, ios 중 2개 이상이 있어야 한다. 한 플랫폼 안의 결정은 그 레포에서 관리한다")
+                if data.get("kind") == "tech" and len(set(platforms) & set(self.code_platforms)) < 2:
+                    self.error(rel, f"`tech` 결정은 `platforms`에 {', '.join(self.code_platforms)} 중 2개 이상이 있어야 한다. 한 플랫폼 안의 결정은 그 레포에서 관리한다")
         if self.present(rel, data, "source"):
             self.path_exists(rel, "source", data["source"])
         if self.present(rel, data, "durability"):
@@ -309,9 +312,25 @@ class Checker:
                     self.error("people.yml", f"GitHub 아이디 `{person.github}`가 두 번 있다")
                 accounts.add(person.github.lower())
 
+    def check_repositories_file(self) -> None:
+        where = "platform-repository.yml"
+        platforms, names = set(), set()
+        for repo in self.repositories:
+            if repo.platform == "design" or repo.platform not in PLATFORMS:
+                self.error(where, f"`platform` 값 `{repo.platform}`은 {', '.join(p for p in PLATFORMS if p != 'design')} 중 하나여야 한다")
+            if repo.platform in platforms:
+                self.error(where, f"플랫폼 `{repo.platform}`이 두 번 있다. 플랫폼마다 레포 하나다")
+            platforms.add(repo.platform)
+            if not REPOSITORY_URL_RE.match(repo.url):
+                self.error(where, f"`url` `{repo.url}`은 `https://github.com/<조직>/<레포>` 형식이어야 한다")
+            elif repo.name.lower() in names:
+                self.error(where, f"레포 이름 `{repo.name}`이 두 번 있다. 작업 공간의 폴더 이름이 겹친다")
+            names.add(repo.name.lower())
+
     def check_docs(self) -> None:
         self.check_domains_file()
         self.check_people_file()
+        self.check_repositories_file()
         for rel, path in wikilib.list_docs(self.root, wikilib.DECISIONS_DIR):
             self.check_decision(rel, path)
         self.check_supersede_links()

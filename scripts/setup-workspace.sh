@@ -4,8 +4,8 @@
 #   git clone https://github.com/JaesungLeee/gguk-wiki.git ~/gguk/gguk-wiki
 #   ~/gguk/gguk-wiki/scripts/setup-workspace.sh
 #
-# 작업 공간은 GGUK_HOME, 없으면 이 스크립트가 든 위키 clone의 상위 폴더다. 그 아래에 코드 레포 3개를
-# clone하고, 플러그인이 찾을 수 있도록 위치를 기록한다. Codex·Pi용 스킬을 ~/.agents/skills/에 링크한다.
+# 작업 공간은 GGUK_HOME, 없으면 이 스크립트가 든 위키 clone의 상위 폴더다. 그 아래에 위키의
+# platform-repository.yml에 있는 코드 레포를 clone하고, 플러그인이 찾을 수 있도록 위치를 기록한다. Codex·Pi용 스킬을 ~/.agents/skills/에 링크한다.
 # 이미 있는 레포와 스킬은 건너뛰므로 여러 번 실행해도 된다.
 # Windows에서는 Git Bash에서 실행한다.
 
@@ -26,8 +26,8 @@ GGUK_HOME="${GGUK_HOME:-$located}"
 
 # 플러그인의 wiki-show.sh가 GGUK_HOME이 없을 때 이 파일에서 작업 공간을 읽는다.
 home_record="${XDG_CONFIG_HOME:-$HOME/.config}/gguk/home"
-CODE_REPOS=(Team-MINO-Node Team-MINO-Android Team-MINO-iOS)
-GITHUB_ORG="https://github.com/mash-up-kr"
+# 코드 레포 목록. 레포 이름은 url의 마지막 부분이다. YAML 라이브러리 없이 `url:` 줄만 읽는다.
+repo_list="$wiki_dir/platform-repository.yml"
 
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*) is_windows=1 ;;
@@ -45,6 +45,26 @@ elif ! gh auth status >/dev/null 2>&1; then
   echo "안내: gh에 로그인되어 있지 않습니다. 조회는 쓸 수 있고, ingest는 'gh auth login' 후 쓸 수 있습니다."
 fi
 
+if [ ! -f "$repo_list" ]; then
+  echo "코드 레포 목록($repo_list)이 없습니다. 위키 clone 안의 scripts/setup-workspace.sh를 실행하세요." >&2
+  exit 1
+fi
+repo_urls=()
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in
+    *url:*)
+      url="${line#*url:}"
+      url="${url#"${url%%[![:space:]]*}"}"
+      url="${url%"${url##*[![:space:]]}"}"
+      repo_urls+=("${url%/}")
+      ;;
+  esac
+done < "$repo_list"
+if [ "${#repo_urls[@]}" = 0 ]; then
+  echo "코드 레포 목록($repo_list)에 url이 없습니다." >&2
+  exit 1
+fi
+
 mkdir -p "$GGUK_HOME" || { echo "$GGUK_HOME 폴더를 만들 수 없습니다." >&2; exit 1; }
 GGUK_HOME=$(cd "$GGUK_HOME" && pwd)
 
@@ -55,7 +75,9 @@ else
   results+=("작업 공간 위치: 실패 (${home_record}에 쓸 수 없습니다. 플러그인을 쓰려면 GGUK_HOME 환경 변수를 설정하세요)")
 fi
 
-for repo in "${CODE_REPOS[@]}"; do
+for url in "${repo_urls[@]}"; do
+  repo="${url##*/}"
+  repo="${repo%.git}"
   dest="$GGUK_HOME/$repo"
   if [ -d "$dest/.git" ]; then
     results+=("$repo: 이미 있음")
@@ -73,7 +95,7 @@ for repo in "${CODE_REPOS[@]}"; do
     clone_args=(-c core.longpaths=true)
   fi
   # macOS 기본 bash 3.2는 set -u에서 빈 배열을 펼치면 오류가 나므로 ${arr[@]+...} 형태로 쓴다.
-  if error=$(git clone --quiet ${clone_args[@]+"${clone_args[@]}"} "$GITHUB_ORG/$repo.git" "$dest" 2>&1); then
+  if error=$(git clone --quiet ${clone_args[@]+"${clone_args[@]}"} "${url%.git}.git" "$dest" 2>&1); then
     results+=("$repo: clone 완료")
   else
     results+=("$repo: 실패 (${error##*$'\n'})")

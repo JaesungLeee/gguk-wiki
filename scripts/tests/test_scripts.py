@@ -94,6 +94,7 @@ class TempRepo:
         self.dir = tempfile.TemporaryDirectory()
         self.root = Path(self.dir.name)
         shutil.copy(REPO / "domains.yml", self.root / "domains.yml")
+        shutil.copy(REPO / "platform-repository.yml", self.root / "platform-repository.yml")
         self.write("people.yml", PEOPLE)
         self.write(SOURCE, "# MVP PRD\n")
 
@@ -254,7 +255,7 @@ class CheckTest(RepoTestCase):
         errors = self.repo.errors()
         self.assertHasError(errors, "2026-11-06-종류-없음.md: 필수 필드 `kind`")
         self.assertHasError(errors, "2026-11-06-종류-틀림.md: `kind` 값 `contract`")
-        self.assertHasError(errors, "2026-11-06-한-플랫폼.md: `tech` 결정은 `platforms`에 server, android, ios 중 2개 이상")
+        self.assertHasError(errors, "2026-11-06-한-플랫폼.md: `tech` 결정은 `platforms`에 android, ios, server 중 2개 이상")
         self.assertFalse(any("공통-계약.md" in e for e in errors), errors)
         self.assertFalse(any("한-플랫폼-기획.md" in e for e in errors), errors)
 
@@ -357,6 +358,36 @@ class CheckTest(RepoTestCase):
         errors = self.repo.errors()
         self.assertHasError(errors, "domains.yml: 도메인 이름 `Push_Notification`은 영어 소문자와 하이픈으로 쓴다")
         self.assertHasError(errors, "domains.yml: 도메인 `room`이 두 번 있다")
+
+    def test_repositories_file(self):
+        self.repo.write("platform-repository.yml", (
+            "- platform: server\n  url: https://github.com/org/Server\n"
+            "- platform: server\n  url: https://github.com/org/server-2\n"
+            "- platform: design\n  url: https://github.com/org/design\n"
+            "- platform: android\n  url: git@github.com:org/android.git\n"
+            "- platform: ios\n  url: https://github.com/other/server\n"
+        ))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "platform-repository.yml: 플랫폼 `server`이 두 번 있다")
+        self.assertHasError(errors, "platform-repository.yml: `platform` 값 `design`은")
+        self.assertHasError(errors, "platform-repository.yml: `url` `git@github.com:org/android.git`은")
+        self.assertHasError(errors, "platform-repository.yml: 레포 이름 `server`이 두 번 있다")
+
+    def test_repository_name(self):
+        repo = wikilib.Repository("server", "https://github.com/mash-up-kr/Team-MINO-Node")
+        self.assertEqual(repo.name, "Team-MINO-Node")
+
+    def test_tech_platforms_follow_repositories(self):
+        # 레포가 없는 플랫폼은 `tech` 결정의 2개에 세지 않는다
+        self.repo.write("platform-repository.yml", (
+            "- platform: server\n  url: https://github.com/org/server\n"
+            "- platform: android\n  url: https://github.com/org/android\n"
+        ))
+        self.repo.doc("wiki/decisions/2026-11-06-앱-공통.md", decision(kind="tech", platforms=["android", "ios"]))
+        self.repo.doc("wiki/decisions/2026-11-06-서버-앱.md", decision(kind="tech", platforms=["server", "android"]))
+        errors = self.repo.errors()
+        self.assertHasError(errors, "2026-11-06-앱-공통.md: `tech` 결정은 `platforms`에 android, server 중 2개 이상")
+        self.assertFalse(any("서버-앱.md" in e for e in errors), errors)
 
     def test_people_file(self):
         self.repo.write("people.yml", (

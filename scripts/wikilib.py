@@ -47,6 +47,17 @@ class Person:
     role: str
 
 
+@dataclass(frozen=True)
+class Repository:
+    platform: str
+    url: str
+
+    @property
+    def name(self) -> str:
+        """레포 이름. url의 마지막 부분이고 작업 공간의 폴더 이름이 된다."""
+        return self.url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+
+
 def nfc(text: str) -> str:
     """macOS(NFD)와 Linux(NFC)의 한글 파일 이름 차이를 없앤다."""
     return unicodedata.normalize("NFC", text)
@@ -80,6 +91,18 @@ def load_people(root: Path) -> list[Person]:
         github = entry.get("github")
         people.append(Person(str(entry["name"]), str(github) if github else None, str(entry["role"])))
     return people
+
+
+def load_repositories(root: Path) -> list[Repository]:
+    data = yaml.safe_load((root / "platform-repository.yml").read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise FormatError("platform-repository.yml: 목록이 아니다")
+    repos = []
+    for i, entry in enumerate(data):
+        if not isinstance(entry, dict) or not entry.get("platform") or not entry.get("url"):
+            raise FormatError(f"platform-repository.yml: {i + 1}번째 항목에 platform과 url이 필요하다")
+        repos.append(Repository(str(entry["platform"]), str(entry["url"])))
+    return repos
 
 
 def parse_frontmatter(path: Path) -> dict:

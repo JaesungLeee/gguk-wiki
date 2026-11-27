@@ -93,6 +93,7 @@ claude plugin update gguk-wiki@gguk
 | [`templates/`](templates/) | 문서 형식. [회의록 템플릿](templates/meeting.md)은 노션 템플릿으로 복사해 쓴다 |
 | [`domains.yml`](domains.yml) | 도메인 목록 |
 | [`people.yml`](people.yml) | 팀원 목록. 채팅 원본의 말한 사람(`author`)과 액션 아이템 담당자(`assignee`)를 이 이름으로 적는다. 목록에 없는 사람은 "알 수 없음" |
+| [`platform-repository.yml`](platform-repository.yml) | 플랫폼별 코드 레포 목록. 설정 스크립트가 이 목록으로 clone하고, 스킬이 이 목록으로 레포를 찾는다 |
 | [`scripts/`](scripts/) | 생성 파일 만들기, 형식 검사, 작업 공간 설정 스크립트 |
 | [`plugin/`](plugin/) | Claude Code 플러그인(ingest, ask 스킬). 마켓플레이스 정의는 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
 | [`agents/skills/`](agents/skills/) | Codex·Pi용 스킬(`gguk-ingest`, `gguk-ask`) |
