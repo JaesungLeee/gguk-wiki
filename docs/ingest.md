@@ -179,7 +179,7 @@ CI에서 아래를 검사하고, 실패하면 merge를 막는다([main 보호 �
 - `people.yml`의 `name`, `github`가 겹치지 않는지, `role`이 `platforms`와 같은 값인지, `name`이 "알 수 없음"·"미정"이 아닌지
 - `platform-repository.yml`의 `platform`이 `platforms` 값(`design` 제외)이고 겹치지 않는지, `url`이 `https://github.com/<조직>/<레포>` 형식이고 레포 이름이 겹치지 않는지. 레포 이름이 작업 공간의 폴더 이름이 되므로 겹치면 한 레포만 clone된다
 - 새로 추가한 채팅 원본(`raw/notes/`)에 `author`가 있고, `people.yml`의 `name`이나 "알 수 없음"인지. 원본은 넣은 뒤 고칠 수 없어, 빠지거나 목록 밖 이름으로 merge되면 다시 고칠 수 없다
-- `raw/`의 기존 파일을 고치거나 지우지 않았는지
+- `raw/`의 기존 파일을 고치거나 지우지 않았는지. 빈 폴더를 남기는 `.gitkeep`은 원본이 아니라 검사하지 않는다. 폴더 구조를 바꿀 때(`raw/specs/` → `raw/baseline/`) 지울 수 있어야 한다
 - 생성 파일(`wiki/domains/`, `index.md`, `log.md`, `action-items.md`)을 추가하거나 고치지 않았는지. PR에서 고친 내용은 merge 뒤 CI가 덮어써 조용히 사라지기 때문이다. 삭제는 허용한다. 생성 파일을 없앨 때 남은 파일을 지울 수 있어야 하고, 잘못 지워도 CI가 다시 만든다
 
 본문 섹션은 검사하지 않는다. 본문은 업로더가 확인한다.

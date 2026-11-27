@@ -510,12 +510,14 @@ class CheckTest(RepoTestCase):
     def test_pr_changes(self):
         self.repo.write("raw/meetings/old.md", "원본\n")
         self.repo.write("raw/meetings/gone.md", "원본\n")
+        self.repo.write("raw/specs/.gitkeep", "")
         self.repo.write("raw/notes/2026-11-01-예전-채팅.md", "---\ndate: 2026-11-01\n---\n예전 원본\n")
         self.repo.write("wiki/log.md", "생성\n")
         self.repo.write("wiki/domains/old.md", "생성\n")
         self.repo.commit_base()
         self.repo.write("raw/meetings/old.md", "고침\n")
         (self.repo.root / "raw/meetings/gone.md").unlink()
+        (self.repo.root / "raw/specs/.gitkeep").unlink()
         self.repo.write("raw/meetings/new.md", "새 원본\n")
         self.repo.write("raw/notes/2026-11-06-작성자-있음.md", filled_template("note.md"))
         self.repo.write("raw/notes/2026-11-06-작성자-빔.md", "---\ndate: 2026-11-06\nauthor:\n---\n메시지\n")
@@ -538,6 +540,7 @@ class CheckTest(RepoTestCase):
         self.assertHasError(errors, "raw/notes/2026-11-06-작성자-여럿.md: `author` 값")
         self.assertFalse(any(n in e for e in errors for n in ("작성자-있음", "작성자-알-수-없음", "예전-채팅")), errors)
         self.assertFalse(any("raw/meetings/new.md" in e for e in errors))
+        self.assertFalse(any(".gitkeep" in e for e in errors), errors)
         self.assertFalse(any("wiki/log.md" in e for e in errors))
 
 

@@ -351,7 +351,8 @@ class Checker:
         fields = [f for f in out.split("\0") if f]
         for status, raw_rel in zip(fields[0::2], fields[1::2]):
             rel = nfc(raw_rel)
-            if rel.startswith("raw/") and status in ("M", "D", "T"):
+            # `.gitkeep`은 빈 폴더를 남기는 자리표시자라 원본이 아니다. 폴더 구조를 바꿀 때 지울 수 있다
+            if rel.startswith("raw/") and posixpath.basename(rel) != ".gitkeep" and status in ("M", "D", "T"):
                 action = "지웠다" if status == "D" else "고쳤다"
                 self.error(rel, f"raw/의 기존 파일을 {action}. 원본은 넣은 뒤 고치거나 지우지 않는다")
             if wikilib.is_generated(rel) and status in ("A", "M", "T"):
