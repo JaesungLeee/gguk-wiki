@@ -19,10 +19,13 @@ from wikilib import FormatError, nfc
 DOMAIN_NAME_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
 DATED_FILE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-.+\.md$")
 
-DECISION_REQUIRED = ("title", "status", "decided_at", "domains", "platforms", "source", "durability")
+DECISION_REQUIRED = ("title", "status", "kind", "decided_at", "domains", "platforms", "source", "durability")
 DECISION_STATUS = ("decided", "superseded")
 DURABILITY = ("permanent", "temporal")
 PLATFORMS = ("server", "android", "ios", "design")
+KINDS = ("product", "tech")
+# `tech` 결정은 이 중 2개 이상에 걸친다. 하나뿐이면 그 레포에서 관리하는 플랫폼 내부 결정이다
+CODE_PLATFORMS = ("server", "android", "ios")
 
 ACTION_REQUIRED = ("source", "items")
 ACTION_ITEM_REQUIRED = ("task", "status")
@@ -31,7 +34,7 @@ NEW_ACTION_ITEM_REQUIRED = ("task", "assignee", "status")
 ACTION_STATUS = ("open", "done", "dropped")
 
 OPEN_QUESTION_REQUIRED = ("source", "items")
-OPEN_QUESTION_ITEM_REQUIRED = ("question", "domains", "status")
+OPEN_QUESTION_ITEM_REQUIRED = ("question", "domains", "kind", "status")
 OPEN_QUESTION_STATUS = ("open", "resolved", "dropped")
 
 
@@ -128,6 +131,8 @@ class Checker:
             self.error(rel, "`title`은 문자열이어야 한다")
         if self.present(rel, data, "status"):
             self.one_of(rel, "status", data["status"], DECISION_STATUS)
+        if self.present(rel, data, "kind"):
+            self.one_of(rel, "kind", data["kind"], KINDS)
         if self.present(rel, data, "decided_at"):
             decided_at = wikilib.date_str(data["decided_at"])
             if decided_at is None:
@@ -149,6 +154,8 @@ class Checker:
                     self.error(rel, "`platforms`가 1개 이상 있어야 한다. 하지 않기로 한 결정은 해당 직무를 모두 적는다")
                 for p in platforms:
                     self.one_of(rel, "platforms", p, PLATFORMS)
+                if data.get("kind") == "tech" and len(set(platforms) & set(CODE_PLATFORMS)) < 2:
+                    self.error(rel, "`tech` 결정은 `platforms`에 server, android, ios 중 2개 이상이 있어야 한다. 한 플랫폼 안의 결정은 그 레포에서 관리한다")
         if self.present(rel, data, "source"):
             self.path_exists(rel, "source", data["source"])
         if self.present(rel, data, "durability"):
@@ -267,6 +274,8 @@ class Checker:
             self.present(where, item, "question")
             if "domains" in item:
                 self.domains(where, item["domains"], required=True)
+            if self.present(where, item, "kind"):
+                self.one_of(where, "kind", item["kind"], KINDS)
             if self.present(where, item, "status"):
                 self.one_of(where, "status", item["status"], OPEN_QUESTION_STATUS)
             if item.get("status") == "resolved":

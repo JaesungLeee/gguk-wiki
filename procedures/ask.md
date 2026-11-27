@@ -26,6 +26,7 @@ git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
 5. 대체된 결정(`status: superseded`)은 빼고 답한다. 이력을 묻는 질문일 때만 넣고 `(대체됨 → 새 결정 경로)`를 함께 표시한다.
 6. 위키에서 답을 찾지 못하면 없다고 답한다. 추측으로 채우지 않는다.
 
+- 결정과 미결의 `kind`를 본다. 계약이나 기술을 묻지 않으면 `product`로 답하고, 관련 `tech` 결정은 제목과 경로만 한 줄로 알린다. 계약이나 기술을 물으면 `tech`로 답한다.
 - 미결을 물으면 도메인 페이지의 미결 목록을 읽는다.
 - 최근 바뀐 결정을 물으면 `wiki/log.md`를 읽는다.
 - 액션 아이템을 물으면 `wiki/action-items.md`를 읽는다. 기한이 지났는지는 오늘 날짜로 판단해 답에 표시한다.
@@ -55,8 +56,12 @@ git -C ~/gguk/Team-MINO-Node show origin/HEAD:<경로>
 | 서버에서 환불 기한 어떻게 계산해? | Team-MINO-Node |
 | 환불 기한이 실제 구현과 맞아? | 세 레포 |
 | iOS는 푸시 토큰을 언제 서버에 보내? | Team-MINO-iOS만. 위키 없이 코드만 물어도 된다 |
+| 실패 응답 형식은 어떻게 정했어? | 하지 않는다. 위키의 `tech` 결정으로 답한다 |
+| 실패 응답 형식이 서버 명세와 맞아? | Team-MINO-Node의 API 명세와 코드. 받아 쓰는 플랫폼을 물으면 그 레포도 |
 
 - 레포는 `~/gguk/` 아래의 `Team-MINO-Node`, `Team-MINO-Android`, `Team-MINO-iOS`다. 없으면 `scripts/setup-workspace.sh` 실행을 안내한다.
+- 계약의 구현을 물으면 서버 API 명세(`Team-MINO-Node`의 `docs/swagger.yaml`)도 읽는다. 위키의 계약 결정과 다르면 불일치로 표시한다.
+- 코드 레포의 문서(Node PRD, ADR 등)는 그 플랫폼의 기록이라 팀 결정으로 답하지 않는다. 인용하면 "Node PRD에 따르면"처럼 출처를 밝히고, 위키나 코드와 다르면 불일치로 표시한다.
 - 구현 위치(경로, 줄 번호)는 위키에 적지 않는다. 조회할 때마다 코드에서 찾는다.
 - 용어집의 심볼이 코드에서 찾히지 않으면 "용어집 심볼 `SavedRoom`을 Team-MINO-Node default 브랜치에서 찾지 못함"으로 표시하고, 영어 직역과 동의어로 다시 찾는다. 새 이름을 찾으면 용어집 수정을 제안만 한다. 반영은 채팅 입력으로 ingest한다.
 

@@ -1,9 +1,10 @@
 ---
 title:                        # 결정 이름
 status: decided               # decided(현재 유효한 결정) | superseded(새 결정으로 대체됨. 이력 조회용)
+kind:                         # product(사용자에게 보이는 동작, 정책, 화면 규칙, 디자인) | tech(두 플랫폼 이상이 함께 지키는 계약과 기술 결정)
 decided_at:                   # YYYY-MM-DD. 파일 이름의 날짜와 같다
 domains: []                   # domains.yml에서 1개 이상
-platforms: []                 # server, android, ios, design 중 영향받는 것. 1개 이상
+platforms: []                 # server, android, ios, design 중 영향받는 것. 1개 이상. tech면 server, android, ios 중 2개 이상
 source:                       # raw/ 아래 원본 경로
 durability:                   # permanent(원칙, 용어 정의, 아키텍처 방향) | temporal(수치, 일정, 외부 정책)
 # supersedes:                 # 이 결정이 대체한 이전 결정 경로. 여러 개면 목록으로 쓴다. 있을 때만 쓴다
