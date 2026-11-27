@@ -1,6 +1,6 @@
 ---
 name: gguk-ingest
-description: GGUK 위키에 회의록, 노션 페이지, STT 요약, 채팅으로 받은 결정을 넣을 때 쓴다. 원본을 raw/에 남기고 결정·액션 아이템·미결 사항으로 나눠 PR을 만든다.
+description: GGUK 위키에 회의록, 노션 페이지, STT 요약, 채팅으로 받은 결정(기획, 플랫폼 공통 계약·기술 결정)을 넣을 때 쓴다. 원본을 raw/에 남기고 결정·액션 아이템·미결 사항으로 나눠 PR을 만든다.
 ---
 가장 먼저 아래 명령을 실행해 GGUK 위키 default 브랜치의 공통 규칙(`AGENTS.md`), ingest 규칙(`procedures/ingest.md`), 도메인 목록(`domains.yml`), 팀원 목록(`people.yml`), 문서 형식(`templates/`)을 읽는다. 다른 파일을 읽거나 작업하기 전에 실행하고, 출력된 규칙을 따라 위키에 넣는다.
 

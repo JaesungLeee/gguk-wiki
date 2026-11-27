@@ -1,6 +1,6 @@
 ---
 name: gguk-ask
-description: GGUK의 정책, 결정, 기획 의도, 미결 사항, 액션 아이템, 다른 플랫폼(Node, Android, iOS) 구현을 물을 때 쓴다. 위키의 default 브랜치를 읽고, 구현을 묻거나 대조를 요청하면 코드 레포의 default 브랜치도 읽어 출처를 붙여 답한다.
+description: GGUK의 정책, 결정, 기획 의도, 플랫폼 간 계약, 미결 사항, 액션 아이템, 다른 플랫폼(Node, Android, iOS) 구현을 물을 때 쓴다. 위키의 default 브랜치를 읽고, 구현을 묻거나 대조를 요청하면 코드 레포의 default 브랜치도 읽어 출처를 붙여 답한다.
 ---
 가장 먼저 아래 명령을 실행해 GGUK 위키 default 브랜치의 공통 규칙(`AGENTS.md`)과 조회 규칙(`procedures/ask.md`)을 읽는다. 다른 파일을 읽거나 답하기 전에 실행하고, 출력된 규칙을 따라 질문에 답한다.
 

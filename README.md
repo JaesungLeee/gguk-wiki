@@ -1,6 +1,6 @@
 # gguk-wiki
 
-GGUK 프로젝트의 정책, 결정, 회의록을 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
+GGUK 프로젝트의 정책, 결정(플랫폼 공통 계약·기술 결정 포함), 회의록을 LLM이 관리하는 위키다. 팀원은 각자 PC의 Claude Code, Codex, Pi로 위키에 정보를 넣고(ingest), 위키와 코드 레포를 함께 조회한다(ask).
 
 처음 쓸 때 [작업 공간을 준비](#작업-공간-준비)한다. Claude Code는 [플러그인을 설치](#플러그인-설치)하고, Codex와 Pi는 [작업 공간 준비만으로 스킬이 설치된다](#codex와-pi). 필요한 도구와 권한은 [필요 조건](docs/plugin.md#필요-조건)에 있다.
 
