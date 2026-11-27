@@ -17,7 +17,7 @@
 
 직무별이 아니라 도메인별로 나눈다. 한 페이지에서 서버/Android/iOS에 공통인 정책을 볼 수 있다. 플랫폼별 구현 위치는 위키에 적지 않고 조회할 때 코드에서 찾는다([코드 조회](retrieval.md#코드-조회)).
 
-`scripts/`(인덱스 생성·형식 검사, `setup-workspace.sh`)는 [인덱스 생성과 형식 검사](ingest.md#인덱스-생성과-형식-검사)와 [작업 공간](plugin.md#작업-공간), `plugin/`은 [plugin.md](plugin.md)를 따른다.
+`scripts/`(인덱스 생성·형식 검사, `setup-workspace.sh`)는 [인덱스 생성과 형식 검사](ingest.md#인덱스-생성과-형식-검사)와 [작업 공간](plugin.md#작업-공간), `plugin/`은 [plugin.md](plugin.md), `proposal/`(기획서)은 [proposal.md](proposal.md)를 따른다.
 
 **원본 자료 (`raw/`)**
 

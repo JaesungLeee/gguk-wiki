@@ -1,6 +1,6 @@
 # Claude Code 플러그인
 
-1단계에서 팀원이 위키를 쓰는 방식을 정한다. 플러그인 하나로 위키 넣기, 위키 조회, 다른 레포 조회를 제공한다.
+1단계에서 팀원이 위키를 쓰는 방식을 정한다. 플러그인 하나로 위키 넣기, 위키 조회, 다른 레포 조회, 기획서 갱신을 제공한다.
 
 ## 구성
 
@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | `ingest` | 위키에 정보 넣기 | [procedures/ingest.md](../procedures/ingest.md) (이유: [ingest.md](ingest.md)) |
 | `ask` | 위키와 코드 레포 조회 | [procedures/ask.md](../procedures/ask.md) (이유: [retrieval.md](retrieval.md)) |
+| `proposal` | 위키 결정으로 기획서 만들기와 갱신 | [procedures/proposal.md](../procedures/proposal.md) (이유: [proposal.md](proposal.md)) |
 
 - `ask` 스킬 설명에 "GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때" 같은 사용 조건을 적는다. 사용자가 명령을 치지 않아도 Claude가 필요할 때 스스로 부르게 하기 위해서다.
 - 훅과 자체 MCP 서버 설정은 넣지 않는다.
@@ -16,12 +17,13 @@
 
 **절차는 `AGENTS.md`에 둔다**
 
-ingest와 조회 규칙은 위키 레포의 `AGENTS.md`(공통)와 `procedures/`(스킬별)에만 적고, 두 스킬의 SKILL.md는 동적 주입으로 그 파일들을 읽어 들인다. 스킬은 주로 코드 레포에서 불리는데, 그때 위키 레포의 파일은 자동으로 읽히지 않기 때문이다.
+ingest, 조회, 기획서 규칙은 위키 레포의 `AGENTS.md`(공통)와 `procedures/`(스킬별)에만 적고, 스킬의 SKILL.md는 동적 주입으로 그 파일들을 읽어 들인다. 스킬은 주로 코드 레포에서 불리는데, 그때 위키 레포의 파일은 자동으로 읽히지 않기 때문이다.
 
 | 스킬 | 주입하는 파일 |
 | --- | --- |
 | `ask` | `AGENTS.md`, `procedures/ask.md`, `platform-repository.yml` |
 | `ingest` | `AGENTS.md`, `procedures/ingest.md`, `domains.yml`, `people.yml`, `platform-repository.yml`, `templates/` 4개(결정, 액션 아이템, 미결, 채팅 원본) |
+| `proposal` | `AGENTS.md`, `procedures/proposal.md`, `domains.yml`, `templates/` 2개(기획서, 대응표) |
 
 ```markdown
 ---
@@ -54,10 +56,11 @@ allowed-tools:
 | --- | --- |
 | `ask` | 주입 스크립트, `git -C <레포>`의 `fetch`, `remote set-head`, `grep`, `show`, `log`, `rev-parse`, `ls-tree` |
 | `ingest` | 주입 스크립트, 노션 MCP의 `notion-search`, `notion-fetch` |
+| `proposal` | 주입 스크립트 |
 
 - 주입 스크립트는 허용하지 않으면 스킬 호출이 중단된다(auto 모드 제외).
 - ask의 git 읽기 명령은 허용하지 않으면 default 모드에서 매번 허락을 묻는다(2026-11-13 확인). 조회 한 번에 여러 번 묻지 않도록 허용한다. `checkout`, `push` 같은 쓰기 명령은 허용하지 않는다.
-- ingest의 브랜치 생성, 커밋, `gh pr create`는 허용하지 않는다. 업로더가 실행마다 확인한다.
+- ingest와 proposal의 브랜치 생성, 커밋, `gh pr create`는 허용하지 않는다. 실행한 사람이 매번 확인한다.
 
 ## 설치와 배포
 
@@ -143,6 +146,7 @@ Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한
 | --- | --- | --- |
 | `gguk-ask` | `ask` | [주입하는 파일](#구성)과 같다 |
 | `gguk-ingest` | `ingest` | [주입하는 파일](#구성)과 같다 |
+| `gguk-proposal` | `proposal` | [주입하는 파일](#구성)과 같다 |
 
 - SKILL.md의 `` !`명령` `` 주입은 Claude Code 전용이다. 공용 스킬은 "가장 먼저 이 명령을 실행해 출력된 규칙을 따른다"는 지시문과 명령을 적는다. 명령은 작업 공간을 정한 뒤([작업 공간](#작업-공간)) 위키 clone의 `plugin/scripts/wiki-show.sh`를 부른다. fetch, `origin/HEAD` 읽기, 읽지 못했을 때의 안내를 Claude Code 스킬과 같은 스크립트로 처리하기 위해서다. 위키 clone이 없으면 명령이 같은 형식의 안내(`[GGUK 위키 규칙을 읽지 못함]`)를 출력한다.
 - 스킬 폴더 기준 상대 경로로 스크립트를 부르지 않는다. Windows에서는 링크 대신 복사본이 설치되어 상대 경로가 위키 clone을 가리키지 않는다.
@@ -166,7 +170,7 @@ Claude Code가 아닌 LLM 도구를 쓰는 팀원도 같은 위키를 쓰게 한
 | 노션 MCP | `claude mcp add` | `codex mcp add` | `mcp.json` |
 
 - Codex의 read-only 샌드박스에서는 위키 clone의 fetch가 막혀 마지막으로 받은 규칙을 읽는다(2026-11-26 확인). 스크립트가 실패해도 0으로 끝나므로 조회는 계속된다.
-- Pi는 명령마다 허락을 묻지 않는다. ingest의 확인 단계([흐름](../procedures/ingest.md#흐름) 7번)는 규칙으로 지켜지므로, `gguk-ingest` 스킬에 push와 PR 생성은 업로더 확인 뒤에만 한다고 다시 적는다.
+- Pi는 명령마다 허락을 묻지 않는다. ingest의 확인 단계([흐름](../procedures/ingest.md#흐름) 7번)와 proposal의 확인 단계([흐름](../procedures/proposal.md#흐름) 5번)는 규칙으로 지켜지므로, `gguk-ingest`와 `gguk-proposal` 스킬에 push와 PR 생성은 확인 뒤에만 한다고 다시 적는다.
 
 **검증**
 

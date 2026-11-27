@@ -2,7 +2,7 @@
 
 GGUK 위키에 정보를 넣고(ingest) 조회할 때 따르는 규칙이다.
 
-- 위키에 넣을 때는 [`procedures/ingest.md`](procedures/ingest.md), 조회할 때는 [`procedures/ask.md`](procedures/ask.md)를 먼저 읽고 따른다. Claude Code의 ingest·ask 스킬은 이 파일들을 자동으로 주입하고, Codex·Pi의 `gguk-ingest`·`gguk-ask` 스킬은 처음에 명령으로 읽는다.
+- 위키에 넣을 때는 [`procedures/ingest.md`](procedures/ingest.md), 조회할 때는 [`procedures/ask.md`](procedures/ask.md), 기획서를 만들거나 갱신할 때는 [`procedures/proposal.md`](procedures/proposal.md)를 먼저 읽고 따른다. Claude Code의 ingest·ask·proposal 스킬은 이 파일들을 자동으로 주입하고, Codex·Pi의 `gguk-ingest`·`gguk-ask`·`gguk-proposal` 스킬은 처음에 명령으로 읽는다.
 - 문서 형식과 상태 값의 의미는 [`templates/`](templates/), 도메인 목록은 [`domains.yml`](domains.yml), 팀원 목록은 [`people.yml`](people.yml), 코드 레포 목록은 [`platform-repository.yml`](platform-repository.yml), 규칙을 정한 이유는 [`docs/`](docs/README.md)에 있다. 설치와 사용 안내는 [`README.md`](README.md)에 있다.
 - 위키 본문과 업로더·질문자에게 보이는 안내·진행 문구는 한국어로 쓴다. 코드 용어(심볼명, 경로)는 영어 원문을 유지한다.
 - 레포는 작업 공간 폴더 아래에 있다. 위치는 환경 변수 `GGUK_HOME`, 설정 스크립트가 기록한 `~/.config/gguk/home`, `~/gguk` 순으로 정한다. 규칙 문서의 `~/gguk`는 이 경로를 뜻한다. 스킬은 이 경로를 규칙 출력 맨 위에 표시한다.
@@ -23,7 +23,10 @@ wiki/
 ├── index.md            # 자동 생성. 도메인 목차
 ├── log.md              # 자동 생성. 결정 시간순 목록
 └── action-items.md     # 자동 생성. 열린 액션 아이템 기한순 목록
-procedures/             # 스킬별 규칙 (ingest, ask)
+proposal/               # 위키에서 뽑은 공용 기획서. proposal 규칙으로만 고친다
+├── project-proposal.md # 기획서
+└── sources.yml         # 기획서 항목과 근거 결정의 대응표
+procedures/             # 스킬별 규칙 (ingest, ask, proposal)
 templates/              # 문서 형식
 domains.yml             # 도메인 목록
 people.yml              # 팀원 목록
@@ -32,6 +35,7 @@ platform-repository.yml # 플랫폼별 코드 레포 목록
 
 - `raw/`의 파일은 넣은 뒤 고치거나 지우지 않는다.
 - 자동 생성 파일(`wiki/domains/`, `index.md`, `log.md`, `action-items.md`)은 만들거나 고치지 않는다. merge 뒤 CI가 다시 만든다.
+- `proposal/`은 [기획서 규칙](procedures/proposal.md)으로만 고친다. 기획서를 바꾸려면 먼저 위키에 결정을 넣는다.
 
 ## 진실의 기준
 
