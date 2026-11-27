@@ -633,14 +633,15 @@ class ProposalTest(RepoTestCase):
         self.assertHasError(errors, "revisions[5]: `scr`는 항목 ID나 `*`여야 한다")
         self.assertHasError(errors, "`version` 1.2.9이 개정 기록의 마지막 버전 1.3.0와 다르다")
 
-    def test_zero_major_bumps_freely(self):
+    def test_first_revision_is_1_0_0(self):
         meta = proposal_meta([
             {"version": "0.1.0", "date": "2026-12-01"},
             {"version": "0.2.0", "date": "2026-12-02", "items": {"SCR-001": "major"}},
-            {"version": "1.0.0", "date": "2026-12-03", "items": {"SCR-001": "patch"}},
         ])
         self.write_proposal(meta, proposal_body({"SCR-001": "방"}))
-        self.assertEqual(self.repo.errors(), [])
+        errors = self.repo.errors()
+        self.assertHasError(errors, "revisions[1]: 첫 개정은 1.0.0이다. 0.1.0로 시작했다")
+        self.assertHasError(errors, "revisions[2]: 가장 큰 등급으로 올린 버전은 1.0.0다(0.1.0 다음)")
 
     def test_body_errors(self):
         body = proposal_body({"SCR-001": "방을 `RoomEntity`로 만든다", "SCR-002": "보관"})

@@ -2,6 +2,7 @@
 name: proposal
 description: 위키의 기획 결정으로 GGUK 공용 기획서(proposal/project-proposal.md)를 만들거나 갱신할 때 쓴다. 지난 기획서 뒤로 바뀐 결정·미결을 찾아 항목별 개정 등급을 제안하고, 확인받아 PR을 만든다.
 argument-hint: [갱신 이유나 범위]
+model: opus
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh *)
 ---

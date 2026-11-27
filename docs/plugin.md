@@ -32,7 +32,7 @@ description: GGUK의 정책, 결정, 다른 플랫폼 구현을 물을 때 쓴�
 allowed-tools:
   - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh *)
 ---
-!`"${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh" AGENTS.md procedures/ask.md`
+!`"${CLAUDE_PLUGIN_ROOT}/scripts/wiki-show.sh" AGENTS.md procedures/ask.md platform-repository.yml`
 ```
 
 - `` !`명령` ``은 스킬 내용이 Claude에게 전달되기 전에 실행되고, 출력이 그 자리에 들어간다([Claude Code 스킬 문서](https://code.claude.com/docs/en/skills)). Claude가 읽을지 판단하지 않으므로 항상 들어간다.
@@ -40,7 +40,8 @@ allowed-tools:
 - 스크립트는 읽기 전에 위키 clone을 fetch한다. 마지막 fetch 뒤에 바뀐 규칙도 바로 주입하기 위해서다. 약 0.5초 걸리고, 실패하면(오프라인) 마지막으로 받은 상태를 읽는다. 주입 맨 위에 기준 커밋과 fetch 결과를 표시한다.
 - 규칙을 스킬별로 나눈 것은 주입량을 줄이기 위해서다. 한 파일(약 10,400자)일 때 ask는 필요 없는 ingest 규칙까지 받았다. 나눈 뒤 ask는 약 3,700자, ingest는 템플릿을 포함해 약 10,400자, 위키 레포 세션(`CLAUDE.md`)은 약 1,600자를 읽는다(2026-11-12 기준).
 - ask는 `domains.yml`을 주입하지 않는다. 조회 1단계가 읽는 `wiki/index.md`에 도메인 이름과 범위가 있다.
-- 두 스킬 모두 `platform-repository.yml`을 주입한다. ask는 코드 조회에서, ingest는 [용어집 반영](ingest.md#용어집-반영)에서 레포를 찾는다. 규칙에 레포 이름을 적지 않으므로 목록이 없으면 레포를 찾을 수 없다.
+- ask와 ingest는 `platform-repository.yml`을 주입한다. ask는 코드 조회에서, ingest는 [용어집 반영](ingest.md#용어집-반영)에서 레포를 찾는다. 규칙에 레포 이름을 적지 않으므로 목록이 없으면 레포를 찾을 수 없다. proposal은 코드 레포를 읽지 않으므로 주입하지 않는다.
+- proposal은 `people.yml`을 주입하지 않는다. 기획서에 사람 이름을 쓰지 않는다.
 - 상황에 맞는 파일만 LLM이 골라 읽게 하는 안은 제외했다. 읽지 않고 넘어가면 규칙이 빠지고, STT 공유 URL처럼 한 번 올라가면 되돌릴 수 없는 실수가 생긴다.
 - Claude Code의 `.claude/rules/`는 쓰지 않는다. `paths`가 없는 규칙은 그 레포 세션마다 로드되고, `paths`가 있는 규칙은 Claude가 일치하는 파일을 읽을 때만 로드된다([Claude Code 메모리 문서](https://code.claude.com/docs/en/memory)). 코드 레포에서 부른 스킬에는 적용되지 않고, 작업 폴더를 읽으며, 다른 LLM 도구는 읽지 못한다. 같은 문서도 여러 단계로 된 절차는 skill로 옮기라고 안내한다.
 - 규칙을 SKILL.md 본문에 직접 쓰지 않는 것은, 플러그인을 업데이트해야 바뀌어 팀원마다 다른 규칙을 쓸 수 있기 때문이다.
@@ -95,14 +96,14 @@ allowed-tools:
 
 사용법: [README.md 작업 공간 준비](../README.md#작업-공간-준비), 동작: [`scripts/setup-workspace.sh`](../scripts/setup-workspace.sh)
 
-ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해진 폴더 하나(작업 공간, 기본 `~/gguk/`) 아래에 둔다.
+스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해진 폴더 하나(작업 공간, 기본 `~/gguk/`) 아래에 둔다.
 
 - 위치는 `GGUK_HOME` 환경 변수, 설정 스크립트가 기록한 `~/.config/gguk/home`(`XDG_CONFIG_HOME`을 따른다), `~/gguk` 순으로 정한다.
 - 다른 위치에 두려면 그 위치에 위키를 clone하고 설정 스크립트를 실행한다. 스크립트가 위치를 기록하므로 셸 설정이나 Claude Code 설정을 고치지 않아도 된다. 환경 변수만 쓰면 셸 설정 파일과 `~/.claude/settings.json`의 `env` 두 곳을 고쳐야 하고, 데스크톱 앱이나 IDE는 셸 설정을 읽지 않을 수 있다.
 - 플러그인 설치 설정(`userConfig`)으로 폴더를 받는 안은 제외했다. 값을 저장하기 전에는 기본값이 주입 명령에 들어가지 않고 글자 그대로 남아 스킬 호출이 중단됐다(2026-11-13 확인).
 - 작업용 clone이 따로 있어도 여기에 별도로 clone한다. 세 레포를 합쳐 약 64MB라 부담이 작고, 링크로 재사용하면 Windows에서 동작이 달라진다(Git Bash의 `ln -s`는 기본 설정에서 복사본을 만든다).
-- ingest와 ask는 같은 위키 clone을 쓴다. ingest는 이 clone에서 작업 브랜치를 만들지만, ask는 `origin/HEAD`를 읽으므로 영향을 받지 않는다([읽는 기준](retrieval.md#읽는-기준)).
-- 레포가 없으면 두 스킬 모두 설정 스크립트 실행을 안내한다.
+- 세 스킬은 같은 위키 clone을 쓴다. ingest와 proposal은 이 clone에서 작업 브랜치를 만들지만, ask는 `origin/HEAD`를 읽으므로 영향을 받지 않는다([읽는 기준](retrieval.md#읽는-기준)).
+- 레포가 없으면 스킬이 설정 스크립트 실행을 안내한다.
 
 **설정 스크립트 `scripts/setup-workspace.sh`**
 
@@ -122,8 +123,8 @@ ingest와 ask 스킬이 레포 위치를 묻지 않도록, 레포 4개를 정해
 | --- | --- |
 | Claude Code | Pro 이상 구독. Free 플랜은 Claude Code를 쓸 수 없다 |
 | git | Windows는 Git for Windows 또는 WSL이 필요하다. Git for Windows가 있으면 Claude Code의 Bash 도구가 Git Bash로 실행되어, macOS와 같은 명령이 동작한다 |
-| gh | 로그인이 필요하다(`gh auth login`). ingest 스킬이 PR을 만들 때 쓴다. 조회만 하면 필요 없다 |
-| 위키 레포 write 권한 | 협업자로 초대받아야 한다. 조회만 하면 필요 없다 |
+| gh | 로그인이 필요하다(`gh auth login`). ingest와 proposal 스킬이 PR을 만들고 형식 검사 결과를 확인할 때 쓴다. 조회만 하면 필요 없다 |
+| 위키 레포 write 권한 | 협업자로 초대받아야 한다. ingest와 proposal이 작업 브랜치를 push할 때 필요하다. 조회만 하면 필요 없다 |
 | 노션 MCP (선택) | 노션 회의록을 MCP로 넣는 사람만 필요하다. `claude mcp add --transport http notion https://mcp.notion.com/mcp`로 추가한 뒤 `/mcp`에서 OAuth로 인증한다. 노션 워크스페이스 멤버여야 하고, 게스트는 연결할 수 없다 |
 
 노션 MCP의 서버 이름은 `notion`으로 맞춘다. ingest 스킬은 `notion-search`, `notion-fetch`만 허용 도구(`mcp__notion__notion-search`, `mcp__notion__notion-fetch`)로 적는다. 서버 이름이 다르면 이 이름이 맞지 않아 매번 허락을 묻는다. 다른 노션 도구는 Claude Code가 실행 전에 허락을 묻는다.

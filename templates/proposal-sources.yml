@@ -1,7 +1,7 @@
 # 기획서(proposal/project-proposal.md) 항목과 근거의 대응표. procedures/proposal.md의 「대응표」를 따른다.
 version: 1.0.0                # 기획서의 version과 같다
 items:
-  "*":                        # 항목 밖(1장, 2장 비목표, 항목을 가로지르는 규칙). raw/baseline/은 여기에만 쓴다
+  "*":                        # 항목 밖(1장, 2장 비목표, 3장 묶음 아래 항목 밖의 TBD:, 항목을 가로지르는 규칙). raw/baseline/은 여기에만 쓴다
     - raw/baseline/2026-11-06-mvp-기획서.md
   SCR-001:                    # 기획서 항목 ID → 근거 경로 목록
     - wiki/decisions/2026-11-06-방-이름-정책.md   # kind: product 결정

@@ -1,6 +1,6 @@
 # GGUK 위키 운영 규칙
 
-GGUK 위키에 정보를 넣고(ingest) 조회할 때 따르는 규칙이다.
+GGUK 위키에 정보를 넣고(ingest), 조회하고(ask), 위키로 기획서를 만들고 갱신할 때(proposal) 따르는 규칙이다.
 
 - 위키에 넣을 때는 [`procedures/ingest.md`](procedures/ingest.md), 조회할 때는 [`procedures/ask.md`](procedures/ask.md), 기획서를 만들거나 갱신할 때는 [`procedures/proposal.md`](procedures/proposal.md)를 먼저 읽고 따른다. Claude Code의 ingest·ask·proposal 스킬은 이 파일들을 자동으로 주입하고, Codex·Pi의 `gguk-ingest`·`gguk-ask`·`gguk-proposal` 스킬은 처음에 명령으로 읽는다.
 - 문서 형식과 상태 값의 의미는 [`templates/`](templates/), 도메인 목록은 [`domains.yml`](domains.yml), 팀원 목록은 [`people.yml`](people.yml), 코드 레포 목록은 [`platform-repository.yml`](platform-repository.yml), 규칙을 정한 이유는 [`docs/`](docs/README.md)에 있다. 설치와 사용 안내는 [`README.md`](README.md)에 있다.
