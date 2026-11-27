@@ -17,3 +17,4 @@
 | [notification](domains/notification.md) | 알림함, 푸시 발송 조건 | 0 | 0 |
 | [settings](domains/settings.md) | 마이페이지 설정(테마, 알림·위치 설정, 약관) | 0 | 0 |
 | [design-system](domains/design-system.md) | 특정 화면·엔티티에 속하지 않는 디자인 결정(글자, 색 체계, 공통 컴포넌트, 접근성) | 0 | 0 |
+| [platform](domains/platform.md) | 특정 엔티티에 속하지 않는 플랫폼 공통 계약과 기술 결정(응답·오류 형식, API 버전, 시간·글자 처리) | 0 | 0 |
