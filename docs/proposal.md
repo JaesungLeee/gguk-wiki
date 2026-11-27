@@ -20,8 +20,8 @@
 
 | 검토한 안 | 판단 |
 | --- | --- |
-| **sdd-android에 가져오기 명령을 추가한다** | 채택. 위키는 버전·개정 기록·항목 ID가 있는 기획서만 만들고, Android에서 명령이 위키 default 브랜치의 기획서를 받아 `docs/prd.md`와 해시를 쓴다. 위키가 sdd-android의 해시 형식과 CLI(Node)에 묶이지 않는다 |
-| 위키가 sdd 형식의 완성본과 해시를 만들고 Android는 복사한다 | 제외. sdd-android는 고치지 않아도 되지만 위키가 sdd CLI를 쓰거나 해시 규칙을 똑같이 다시 구현해야 한다. CLI가 파일 이름을 `prd.md`로 고정한다 |
+| **sdd-android에 가져오기 명령을 추가한다** | 채택. 위키는 버전·개정 기록·항목 ID가 있는 기획서만 만들고, Android에서 명령이 위키 default 브랜치의 기획서를 받아 `docs/project-proposal.md`와 해시를 쓴다. 위키가 sdd-android의 해시 형식과 CLI(Node)에 묶이지 않는다 |
+| 위키가 sdd 형식의 완성본과 해시를 만들고 Android는 복사한다 | 제외. sdd-android는 고치지 않아도 되지만 위키가 sdd CLI를 쓰거나 해시 규칙을 똑같이 다시 구현해야 한다. 지금 CLI는 파일 이름을 `prd.md`로 고정한다 |
 | sdd-android가 위키 clone의 기획서를 직접 읽는다 | 제외. 복사본이 없어 어긋나지 않지만 sdd-android를 크게 고쳐야 하고, Android 빌드와 CI가 위키 clone에 기대게 된다 |
 
 - 가져오기는 1.0.0 이상만 받는다. sdd-android에는 0.x가 없다. 작성 중(`draft`)이면 버전이 없고, 완료하면 바로 1.0.0이다. 1.0.0이 개발 착수 시점이라는 [버전 규칙](#개정-등급)과 뜻이 맞는다.
@@ -29,7 +29,8 @@
 
 ## 위치와 이름
 
-- 기획서는 `proposal/project-proposal.md`, 스킬은 `proposal`이다. 가져오기 명령이 Android에서 `docs/prd.md`로 써 주므로 위키 쪽 파일 이름은 sdd-android에 맞추지 않는다. 위키에서는 "PRD"라는 이름을 쓰지 않는다([이름](direction.md#문서별-역할)).
+- 기획서는 `proposal/project-proposal.md`, 스킬은 `proposal`이다. 위키에서는 "PRD"라는 이름을 쓰지 않는다([이름](direction.md#문서별-역할)).
+- sdd-android도 같은 이름으로 바꾼다. PRD 문서는 `docs/project-proposal.md`, 스킬은 `proposal`이다. 위키와 Android에서 같은 문서를 같은 이름으로 부른다.
 - 스킬 이름 `plan`은 제외했다. 폴더 이름과 다르고, Claude Code의 plan 모드와 헷갈린다.
 
 ## 변경 감지
