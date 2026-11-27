@@ -544,6 +544,211 @@ class CheckTest(RepoTestCase):
         self.assertFalse(any("wiki/log.md" in e for e in errors))
 
 
+DECIDED = "wiki/decisions/2026-11-06-방-이름-정책.md"
+OPEN = "wiki/open-questions/baseline/2026-11-06-mvp-prd.md"
+
+
+def proposal_meta(revisions: list[dict], version: str | None = None) -> dict:
+    return {
+        "version": version or revisions[-1]["version"],
+        "status": "created",
+        "created": "2026-12-01",
+        "updated": revisions[-1]["date"],
+        "revisions": revisions,
+    }
+
+
+def proposal_body(items: dict[str, str], overview: str = "방에 장소를 모은다.") -> str:
+    """items: 항목 ID → 항목 본문. 2장 목표와 3장 항목을 함께 만든다."""
+    goals = "\n".join(f"- **[{i}] 항목 {i}**: 한 줄" for i in items)
+    specs = "\n\n".join(f"### [{i}] 항목 {i}\n\n- **역할**: {text}" for i, text in items.items())
+    return (
+        f"# GGUK 기획서\n\n# 1. 개요\n\n{overview}\n\n---\n\n# 2. 목표 / 비목표\n\n## 목표\n\n{goals}\n\n---\n\n"
+        f"# 3. 기능 명세\n\n## 방\n\n{specs}\n\n---\n\n# 4. 참고 자료\n\n- **위키**: 링크\n"
+    )
+
+
+FIRST = {"version": "1.0.0", "date": "2026-12-01"}
+
+
+class ProposalTest(RepoTestCase):
+    def setUp(self):
+        super().setUp()
+        self.repo.doc(DECIDED, decision())
+        self.repo.doc(OPEN, {"source": SOURCE, "items": [
+            {"question": "라벨인가 툴팁인가", "domains": ["room"], "kind": "product", "status": "open"},
+        ]})
+
+    def write_proposal(self, meta: dict, body: str, sources: dict | None = None) -> None:
+        self.repo.doc(wikilib.PROPOSAL_FILE, meta, body)
+        if sources is None:
+            sources = {"version": meta["version"], "items": {"*": [SOURCE], "SCR-001": [DECIDED, OPEN]}}
+        self.repo.write(wikilib.PROPOSAL_SOURCES, yaml.safe_dump(sources, allow_unicode=True, sort_keys=False))
+
+    def checker(self) -> check.Checker:
+        checker = check.Checker(self.repo.root)
+        checker.check_docs()
+        return checker
+
+    def test_template_meta_passes(self):
+        text = (REPO / "templates" / "proposal.md").read_text(encoding="utf-8")
+        meta, _ = wikilib.split_frontmatter(text)
+        self.write_proposal(meta, proposal_body({"SCR-001": "방을 만든다"}))
+        self.assertEqual(self.repo.errors(), [])
+        sources = yaml.safe_load((REPO / "templates" / "proposal-sources.yml").read_text(encoding="utf-8"))
+        self.assertEqual(set(sources), {"version", "items"})
+
+    def test_no_proposal_yet(self):
+        checker = self.checker()
+        self.assertEqual(checker.errors, [])
+        self.assertEqual(checker.warnings, [])
+
+    def test_valid_proposal(self):
+        self.write_proposal(proposal_meta([FIRST]), proposal_body({"SCR-001": "방을 만든다"}))
+        checker = self.checker()
+        self.assertEqual(checker.errors, [])
+        self.assertEqual(checker.warnings, [])
+
+    def test_missing_pair(self):
+        self.repo.doc(wikilib.PROPOSAL_FILE, proposal_meta([FIRST]), proposal_body({"SCR-001": "방"}))
+        self.assertHasError(self.repo.errors(), "proposal/sources.yml: 기획서와 대응표는 함께 있어야 한다")
+
+    def test_meta_errors(self):
+        meta = proposal_meta([
+            FIRST,
+            {"version": "1.2.0", "date": "2026-12-02", "items": {"SCR-001": "minor"}},
+            {"version": "1.1.0", "date": "2026-12-03", "items": {"SCR-001": "patch"}},
+            {"version": "1.2.1", "date": "2026-12-04"},
+            {"version": "1.3.0", "date": "2026-12-05", "items": {"SCR-001": "big", "scr": "minor"}},
+        ], version="1.2.9")
+        meta["status"] = "draft"
+        self.write_proposal(meta, proposal_body({"SCR-001": "방"}),
+                            {"version": "1.2.9", "items": {"*": [SOURCE], "SCR-001": [DECIDED]}})
+        errors = self.repo.errors()
+        self.assertHasError(errors, "`status`는 `created`여야 한다")
+        self.assertHasError(errors, "revisions[2]: 가장 큰 등급으로 올린 버전은 1.1.0다(1.0.0 다음)")
+        self.assertHasError(errors, "revisions[3]: 버전이 순서대로가 아니다: 1.2.0 다음에 1.1.0")
+        self.assertHasError(errors, "revisions[4]: 두 번째 개정부터는 `items`가 있어야 한다")
+        self.assertHasError(errors, "revisions[5]: `SCR-001`의 등급 `big`는")
+        self.assertHasError(errors, "revisions[5]: `scr`는 항목 ID나 `*`여야 한다")
+        self.assertHasError(errors, "`version` 1.2.9이 개정 기록의 마지막 버전 1.3.0와 다르다")
+
+    def test_zero_major_bumps_freely(self):
+        meta = proposal_meta([
+            {"version": "0.1.0", "date": "2026-12-01"},
+            {"version": "0.2.0", "date": "2026-12-02", "items": {"SCR-001": "major"}},
+            {"version": "1.0.0", "date": "2026-12-03", "items": {"SCR-001": "patch"}},
+        ])
+        self.write_proposal(meta, proposal_body({"SCR-001": "방"}))
+        self.assertEqual(self.repo.errors(), [])
+
+    def test_body_errors(self):
+        body = proposal_body({"SCR-001": "방을 `RoomEntity`로 만든다", "SCR-002": "보관"})
+        body = body.replace("- **[SCR-002] 항목 SCR-002**: 한 줄", "- **[SYS-001] 항목**: 한 줄")
+        body += "\n<!-- 주석의 `코드`는 괜찮다 -->\n\n### [SCR-001] 다시\n"
+        self.write_proposal(proposal_meta([FIRST]), body)
+        errors = self.repo.errors()
+        self.assertHasError(errors, "항목 `SCR-001`가 두 번 있다")
+        self.assertHasError(errors, "2장 목표의 `SYS-001`가 3장 기능 명세에 없다")
+        self.assertHasError(errors, "3장 기능 명세의 `SCR-002`가 2장 목표에 없다")
+        self.assertHasError(errors, "본문에 코드 표기(백틱)가 있다")
+
+    def test_sources_errors(self):
+        self.repo.doc("wiki/decisions/2026-11-06-응답-형식.md", decision(title="응답 형식", kind="tech"))
+        self.repo.write("raw/meetings/2026-11-06-회의.md", "회의\n")
+        self.write_proposal(proposal_meta([FIRST]), proposal_body({"SCR-001": "방"}), {"version": "1.0.1", "items": {
+            "*": [DECIDED, OPEN],
+            "SCR-001": [SOURCE, "wiki/decisions/2026-11-06-응답-형식.md", "raw/meetings/2026-11-06-회의.md", "wiki/decisions/없음.md"],
+            "SCR-009": [DECIDED],
+            "SYS-001": [],
+        }})
+        errors = self.repo.errors()
+        self.assertHasError(errors, "`version` 1.0.1이 기획서의 버전 1.0.0과 다르다")
+        self.assertHasError(errors, "SCR-001: 이관 기준선 `raw/baseline/2026-11-06-mvp-prd.md`는 `*`에만 쓴다")
+        self.assertHasError(errors, "SCR-001: 근거 `wiki/decisions/2026-11-06-응답-형식.md`는 `tech` 결정이다")
+        self.assertHasError(errors, "SCR-001: 근거 `raw/meetings/2026-11-06-회의.md`는 결정, 미결, 이관 기준선이어야 한다")
+        self.assertHasError(errors, "SCR-001: 근거 `wiki/decisions/없음.md`가 없다")
+        self.assertHasError(errors, "SCR-009: 기획서에 없는 항목이다")
+        self.assertHasError(errors, "SYS-001: 근거 경로가 1개 이상인 목록이어야 한다")
+
+    def test_lag_is_warning(self):
+        """위키가 기획서보다 앞서 나가면 경고만 한다. ingest PR을 막지 않는다."""
+        self.write_proposal(proposal_meta([FIRST]), proposal_body({"SCR-001": "방"}))
+        new = "wiki/decisions/2026-11-20-방-이름-정책.md"
+        self.repo.doc(DECIDED, decision(status="superseded", superseded_by=new))
+        self.repo.doc(new, decision(decided_at="2026-11-20", supersedes=DECIDED))
+        self.repo.doc(OPEN, {"source": SOURCE, "items": [
+            {"question": "라벨인가 툴팁인가", "domains": ["room"], "kind": "product", "status": "resolved", "resolved_by": new},
+        ]})
+        self.repo.doc("wiki/open-questions/meetings/2026-11-20-회의.md", {"source": "raw/meetings/2026-11-20-회의.md", "items": [
+            {"question": "방 개수 제한", "domains": ["room"], "kind": "product", "status": "open"},
+        ]})
+        self.repo.write("raw/meetings/2026-11-20-회의.md", "회의\n")
+        checker = self.checker()
+        self.assertEqual(checker.errors, [])
+        self.assertHasError(checker.warnings, f"근거 `{DECIDED}`가 `{new}`로 대체됐다")
+        self.assertHasError(checker.warnings, f"근거 `{OPEN}`의 `product` 미결이 모두 해소됐다")
+        self.assertHasError(checker.warnings, f"기획서에 반영하지 않은 결정 `{new}`")
+        self.assertHasError(checker.warnings, "기획서에 반영하지 않은 미결 `wiki/open-questions/meetings/2026-11-20-회의.md`")
+
+    def revise(self, items: dict[str, str], revision: dict | None, overview: str = "방에 장소를 모은다.") -> list[str]:
+        """1.0.0을 main에 두고, PR에서 본문과 개정 기록을 바꾼다."""
+        base = {"SCR-001": "방을 만든다", "SCR-002": "방을 보관한다"}
+        self.write_proposal(proposal_meta([FIRST]), proposal_body(base),
+                            {"version": "1.0.0", "items": {"*": [SOURCE], "SCR-001": [DECIDED, OPEN], "SCR-002": [DECIDED]}})
+        self.repo.commit_base()
+        revisions = [FIRST] + ([revision] if revision else [])
+        sources = {"*": [SOURCE], **{i: [DECIDED] for i in items}}
+        self.write_proposal(proposal_meta(revisions), proposal_body(items, overview),
+                            {"version": revisions[-1]["version"], "items": sources})
+        self.repo.commit_pr()
+        return self.repo.errors(base="main")
+
+    def test_revision_matches_changes(self):
+        errors = self.revise(
+            {"SCR-001": "방을 만든다", "SCR-002": "방을 보관하고 되살린다", "SCR-003": "방을 공유한다"},
+            {"version": "1.1.0", "date": "2026-12-02", "items": {"SCR-002": "minor", "SCR-003": "minor", "*": "patch"}},
+        )
+        self.assertEqual(errors, [])
+
+    def test_hand_edit_rejected(self):
+        errors = self.revise({"SCR-001": "방을 만든다", "SCR-002": "방을 지운다"}, None)
+        self.assertHasError(errors, "본문을 고치면 개정 기록을 하나 더한다")
+
+    def test_revision_items_must_match(self):
+        errors = self.revise(
+            {"SCR-001": "방을 바꿔 만든다", "SCR-003": "새 항목"},
+            {"version": "1.1.0", "date": "2026-12-02", "items": {"SCR-002": "minor", "SCR-003": "patch", "SCR-009": "patch"}},
+            overview="바뀐 개요",
+        )
+        self.assertHasError(errors, "바뀐 `SCR-001`의 등급이 개정 기록에 없다")
+        self.assertHasError(errors, "바뀐 `*`의 등급이 개정 기록에 없다")
+        self.assertHasError(errors, "바뀌지 않은 `SCR-009`에 등급을 매겼다")
+        self.assertHasError(errors, "새 항목 `SCR-003`는 `minor` 이상이다")
+        self.assertHasError(errors, "지운 항목 `SCR-002`는 `major`다")
+
+    def test_trailing_item_append_keeps_previous_hash(self):
+        """장의 마지막 항목 뒤에 새 항목을 더해도 앞 항목은 바뀌지 않은 것으로 본다."""
+        before = wikilib.split_items(proposal_body({"SCR-001": "방"}))
+        after = wikilib.split_items(proposal_body({"SCR-001": "방", "SCR-002": "보관"}))
+        self.assertEqual(before.items["SCR-001"], after.items["SCR-001"])
+
+    def test_old_revisions_frozen(self):
+        self.write_proposal(proposal_meta([FIRST]), proposal_body({"SCR-001": "방"}))
+        self.repo.commit_base()
+        self.write_proposal(proposal_meta([{"version": "1.0.0", "date": "2026-12-09"}]), proposal_body({"SCR-001": "방"}))
+        self.repo.commit_pr()
+        self.assertHasError(self.repo.errors(base="main"), "기존 개정 기록을 고쳤다")
+
+    def test_deleted(self):
+        self.write_proposal(proposal_meta([FIRST]), proposal_body({"SCR-001": "방"}))
+        self.repo.commit_base()
+        (self.repo.root / wikilib.PROPOSAL_FILE).unlink()
+        (self.repo.root / wikilib.PROPOSAL_SOURCES).unlink()
+        self.repo.commit_pr()
+        self.assertHasError(self.repo.errors(base="main"), "기획서를 지웠다")
+
+
 class GenerateTest(RepoTestCase):
     def setUp(self):
         super().setUp()

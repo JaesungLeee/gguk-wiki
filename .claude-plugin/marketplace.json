@@ -8,7 +8,7 @@
     {
       "name": "gguk-wiki",
       "source": "./plugin",
-      "description": "GGUK 위키 ingest, 위키·코드 레포 조회"
+      "description": "GGUK 위키 ingest, 위키·코드 레포 조회, 기획서 갱신"
     }
   ]
 }

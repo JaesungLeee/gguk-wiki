@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import posixpath
 import re
 import subprocess
@@ -37,6 +38,32 @@ OPEN_QUESTION_REQUIRED = ("source", "items")
 OPEN_QUESTION_ITEM_REQUIRED = ("question", "domains", "kind", "status")
 OPEN_QUESTION_STATUS = ("open", "resolved", "dropped")
 
+# 기획서. procedures/proposal.md를 따른다
+VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+GRADES = ("patch", "minor", "major")  # 작은 것부터
+OUTSIDE = "*"
+GOAL_RE = re.compile(rf"^\s*[-*]\s+\*\*\[({wikilib.ITEM_ID})\]", re.MULTILINE)
+COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def parse_version(value) -> tuple[int, int, int] | None:
+    m = VERSION_RE.match(value) if isinstance(value, str) else None
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+
+
+def bump_version(version: tuple[int, int, int], grade: str) -> tuple[int, int, int]:
+    """가장 큰 등급 하나만 올린다. 상위 자리가 오르면 하위 자리는 0이 된다."""
+    major, minor, patch = version
+    if grade == "major":
+        return (major + 1, 0, 0)
+    if grade == "minor":
+        return (major, minor + 1, 0)
+    return (major, minor, patch + 1)
+
+
+def version_str(version: tuple[int, int, int]) -> str:
+    return ".".join(map(str, version))
+
 
 def supersedes_list(value) -> list:
     """`supersedes`는 경로 하나(문자열)나 경로 목록이다. 비교할 수 있게 NFC 경로 목록으로 맞춘다."""
@@ -50,6 +77,8 @@ class Checker:
     def __init__(self, root: Path):
         self.root = root
         self.errors: list[str] = []
+        # 경고는 merge를 막지 않는다. 기획서가 위키보다 뒤처진 것을 알린다
+        self.warnings: list[str] = []
         self.files = wikilib.repo_files(root)
         self.domain_names = {d.name for d in wikilib.load_domains(root)}
         self.people = wikilib.load_people(root)
@@ -59,9 +88,14 @@ class Checker:
         self.code_platforms = sorted({r.platform for r in self.repositories})
         # 결정 경로 → frontmatter. 대체 관계를 양쪽에서 맞춰 볼 때 쓴다.
         self.decisions: dict[str, dict] = {}
+        # 미결 경로 → frontmatter. 기획서 대응표와 맞춰 볼 때 쓴다.
+        self.open_questions: dict[str, dict] = {}
 
     def error(self, where: str, message: str) -> None:
         self.errors.append(f"{where}: {message}")
+
+    def warning(self, where: str, message: str) -> None:
+        self.warnings.append(f"{where}: {message}")
 
     # 공통 검사
 
@@ -268,6 +302,7 @@ class Checker:
         data = self.load(rel, path)
         if data is None:
             return
+        self.open_questions[rel] = data
         self.require(rel, data, OPEN_QUESTION_REQUIRED)
         if self.present(rel, data, "source"):
             self.path_exists(rel, "source", data["source"])
@@ -339,6 +374,155 @@ class Checker:
             self.check_action_items(rel, path)
         for rel, path in wikilib.list_docs(self.root, wikilib.OPEN_QUESTIONS_DIR):
             self.check_open_questions(rel, path)
+        self.check_proposal()
+
+    # 기획서
+
+    def load_proposal(self, rel: str, text: str) -> tuple[dict, str] | None:
+        try:
+            return wikilib.split_frontmatter(text)
+        except FormatError as e:
+            self.error(rel, str(e))
+            return None
+
+    def check_proposal(self) -> None:
+        """기획서와 대응표. 첫 기획서를 만들기 전에는 둘 다 없다."""
+        rel, sources_rel = wikilib.PROPOSAL_FILE, wikilib.PROPOSAL_SOURCES
+        has_doc, has_sources = rel in self.files, sources_rel in self.files
+        if not has_doc and not has_sources:
+            return
+        if not has_doc or not has_sources:
+            missing = rel if not has_doc else sources_rel
+            self.error(missing, "기획서와 대응표는 함께 있어야 한다")
+            return
+        loaded = self.load_proposal(rel, (self.root / rel).read_text(encoding="utf-8"))
+        if loaded is None:
+            return
+        meta, body = loaded
+        version = self.check_proposal_meta(rel, meta)
+        split = wikilib.split_items(body)
+        for item_id in sorted(set(split.duplicates)):
+            self.error(rel, f"항목 `{item_id}`가 두 번 있다")
+        goals = set(GOAL_RE.findall(split.outside))
+        for item_id in sorted(goals - set(split.items)):
+            self.error(rel, f"2장 목표의 `{item_id}`가 3장 기능 명세에 없다")
+        for item_id in sorted(set(split.items) - goals):
+            self.error(rel, f"3장 기능 명세의 `{item_id}`가 2장 목표에 없다")
+        if "`" in COMMENT_RE.sub("", body):
+            self.error(rel, "본문에 코드 표기(백틱)가 있다. 기획서는 개발 용어를 쓰지 않는다")
+        self.check_proposal_sources(sources_rel, version, set(split.items))
+
+    def check_proposal_meta(self, rel: str, meta: dict) -> tuple[int, int, int] | None:
+        version = parse_version(meta.get("version"))
+        if version is None:
+            self.error(rel, f"`version` `{meta.get('version')}`은 MAJOR.MINOR.PATCH여야 한다")
+        if meta.get("status") != "created":
+            self.error(rel, "`status`는 `created`여야 한다")
+        for key in ("created", "updated"):
+            if wikilib.date_str(meta.get(key)) is None:
+                self.error(rel, f"`{key}`은 YYYY-MM-DD 날짜여야 한다")
+        revisions = meta.get("revisions")
+        if not isinstance(revisions, list) or not revisions:
+            self.error(rel, "`revisions`는 개정 기록이 1개 이상인 목록이어야 한다")
+            return version
+        previous = None
+        for i, revision in enumerate(revisions, start=1):
+            where = f"{rel} revisions[{i}]"
+            if not isinstance(revision, dict):
+                self.error(where, "개정 기록은 키-값 형식이어야 한다")
+                previous = None
+                continue
+            current = parse_version(revision.get("version"))
+            if current is None:
+                self.error(where, f"`version` `{revision.get('version')}`은 MAJOR.MINOR.PATCH여야 한다")
+            if wikilib.date_str(revision.get("date")) is None:
+                self.error(where, "`date`는 YYYY-MM-DD 날짜여야 한다")
+            items = revision.get("items")
+            grades = []
+            if items is not None:
+                if not isinstance(items, dict) or not items:
+                    self.error(where, "`items`는 항목 ID → 등급이어야 한다")
+                else:
+                    for item_id, grade in items.items():
+                        if item_id != OUTSIDE and not re.fullmatch(wikilib.ITEM_ID, str(item_id)):
+                            self.error(where, f"`{item_id}`는 항목 ID나 `{OUTSIDE}`여야 한다")
+                        if grade not in GRADES:
+                            self.error(where, f"`{item_id}`의 등급 `{grade}`는 major | minor | patch 중 하나여야 한다")
+                        else:
+                            grades.append(grade)
+            if previous and current:
+                if current <= previous:
+                    self.error(where, f"버전이 순서대로가 아니다: {version_str(previous)} 다음에 {version_str(current)}")
+                elif not grades:
+                    self.error(where, "두 번째 개정부터는 `items`가 있어야 한다")
+                elif previous >= (1, 0, 0):
+                    expected = bump_version(previous, max(grades, key=GRADES.index))
+                    if current != expected:
+                        self.error(where, f"가장 큰 등급으로 올린 버전은 {version_str(expected)}다({version_str(previous)} 다음)")
+            previous = current
+        last = revisions[-1].get("version") if isinstance(revisions[-1], dict) else None
+        if version and last != meta.get("version"):
+            self.error(rel, f"`version` {meta.get('version')}이 개정 기록의 마지막 버전 {last}와 다르다")
+        return version
+
+    def check_proposal_sources(self, rel: str, version, item_ids: set[str]) -> None:
+        try:
+            data = wikilib.yaml.safe_load((self.root / rel).read_text(encoding="utf-8"))
+        except wikilib.yaml.YAMLError as e:
+            self.error(rel, f"읽을 수 없다: {e}")
+            return
+        if not isinstance(data, dict) or not isinstance(data.get("items"), dict):
+            self.error(rel, "`version`과 `items`(항목 ID → 근거 경로 목록)가 있어야 한다")
+            return
+        if version and parse_version(str(data.get("version"))) != version:
+            self.error(rel, f"`version` {data.get('version')}이 기획서의 버전 {version_str(version)}과 다르다")
+        cited: set[str] = set()
+        for key, paths in data["items"].items():
+            where = f"{rel} {key}"
+            if key != OUTSIDE and key not in item_ids:
+                self.error(where, "기획서에 없는 항목이다")
+            if not isinstance(paths, list) or not paths:
+                self.error(where, "근거 경로가 1개 이상인 목록이어야 한다")
+                continue
+            for path in paths:
+                path = nfc(path) if isinstance(path, str) else path
+                cited.add(path)
+                self.check_proposal_source(where, key, path)
+        self.check_proposal_lag(rel, cited)
+
+    def check_proposal_source(self, where: str, key: str, path) -> None:
+        if not isinstance(path, str) or path not in self.files:
+            self.error(where, f"근거 `{path}`가 없다")
+            return
+        if path.startswith(wikilib.DECISIONS_DIR + "/"):
+            data = self.decisions.get(path, {})
+            if data.get("kind") == "tech":
+                self.error(where, f"근거 `{path}`는 `tech` 결정이다. 기획서는 `product` 결정만 쓴다")
+            if data.get("status") == "superseded":
+                self.warning(where, f"근거 `{path}`가 `{data.get('superseded_by')}`로 대체됐다. proposal로 기획서를 갱신한다")
+        elif path.startswith(wikilib.OPEN_QUESTIONS_DIR + "/"):
+            if path in self.open_questions and not self.open_product_questions(path):
+                self.warning(where, f"근거 `{path}`의 `product` 미결이 모두 해소됐다. proposal로 TBD를 갱신한다")
+        elif path.startswith(wikilib.BASELINE_DIR + "/"):
+            if key != OUTSIDE:
+                self.error(where, f"이관 기준선 `{path}`는 `{OUTSIDE}`에만 쓴다")
+        else:
+            self.error(where, f"근거 `{path}`는 결정, 미결, 이관 기준선이어야 한다")
+
+    def open_product_questions(self, rel: str) -> list[dict]:
+        items = self.open_questions.get(rel, {}).get("items")
+        if not isinstance(items, list):
+            return []
+        return [i for i in items if isinstance(i, dict) and i.get("kind") == "product" and i.get("status") == "open"]
+
+    def check_proposal_lag(self, rel: str, cited: set[str]) -> None:
+        """대응표에 없는 유효한 기획 결정과 열린 기획 미결을 경고한다. ingest PR을 막지 않는다."""
+        for path, data in sorted(self.decisions.items()):
+            if data.get("status") == "decided" and data.get("kind") == "product" and path not in cited:
+                self.warning(rel, f"기획서에 반영하지 않은 결정 `{path}`가 있다. proposal로 기획서를 갱신한다")
+        for path in sorted(self.open_questions):
+            if path not in cited and self.open_product_questions(path):
+                self.warning(rel, f"기획서에 반영하지 않은 미결 `{path}`가 있다. proposal로 기획서를 갱신한다")
 
     # PR 변경 검사
 
@@ -361,6 +545,64 @@ class Checker:
                 self.check_note(rel, self.root / raw_rel)
             if rel.startswith(wikilib.ACTION_ITEMS_DIR + "/") and rel.endswith(".md") and status in ("A", "M"):
                 self.check_new_action_items(rel, self.root / raw_rel)
+            if rel == wikilib.PROPOSAL_FILE and status == "D":
+                self.error(rel, "기획서를 지웠다")
+            if rel == wikilib.PROPOSAL_FILE and status in ("M", "T"):
+                self.check_proposal_revision(base, rel)
+
+    def check_proposal_revision(self, base: str, rel: str) -> None:
+        """본문이 바뀌면 개정 기록이 하나 늘고, 바뀐 항목마다 등급이 있어야 한다. 손으로 고친 기획서를 막는다.
+
+        sdd-android가 해시로 잡는 "미기록 변경"을 위키에서는 base와 비교해 잡는다.
+        """
+        old = subprocess.run(
+            ["git", "-C", str(self.root), "show", f"{base}:{rel}"], capture_output=True,
+        )
+        if old.returncode != 0:
+            return
+        with_errors = len(self.errors)
+        before = self.load_proposal(rel, old.stdout.decode("utf-8"))
+        after = self.load_proposal(rel, (self.root / rel).read_text(encoding="utf-8"))
+        del self.errors[with_errors:]  # 형식 오류는 check_docs가 낸다
+        if before is None or after is None:
+            return
+        (old_meta, old_body), (new_meta, new_body) = before, after
+        old_revisions = old_meta.get("revisions") if isinstance(old_meta.get("revisions"), list) else []
+        new_revisions = new_meta.get("revisions") if isinstance(new_meta.get("revisions"), list) else []
+        if new_revisions[: len(old_revisions)] != old_revisions:
+            self.error(rel, "기존 개정 기록을 고쳤다. 개정 기록은 끝에만 더한다")
+            return
+        added_revisions = new_revisions[len(old_revisions):]
+
+        old_split, new_split = wikilib.split_items(old_body), wikilib.split_items(new_body)
+        added = set(new_split.items) - set(old_split.items)
+        removed = set(old_split.items) - set(new_split.items)
+        changed = {i for i in set(old_split.items) & set(new_split.items) if old_split.items[i] != new_split.items[i]}
+        if old_split.outside != new_split.outside:
+            changed.add(OUTSIDE)
+        touched = added | removed | changed
+
+        if not touched:
+            if added_revisions:
+                self.error(rel, "본문이 바뀌지 않았는데 개정 기록을 더했다")
+            return
+        if len(added_revisions) != 1 or not isinstance(added_revisions[0], dict):
+            self.error(rel, "본문을 고치면 개정 기록을 하나 더한다. 기획서는 proposal 규칙으로만 고친다")
+            return
+        items = added_revisions[0].get("items")
+        items = items if isinstance(items, dict) else {}
+        for item_id in sorted(touched - set(items)):
+            self.error(rel, f"바뀐 `{item_id}`의 등급이 개정 기록에 없다")
+        for item_id in sorted(set(items) - touched):
+            self.error(rel, f"바뀌지 않은 `{item_id}`에 등급을 매겼다")
+        if (parse_version(old_meta.get("version")) or (0, 0, 0)) < (1, 0, 0):
+            return  # 0.x는 큰 변경도 minor로 올린다
+        for item_id in sorted(added):
+            if items.get(item_id) not in ("minor", "major"):
+                self.error(rel, f"새 항목 `{item_id}`는 `minor` 이상이다")
+        for item_id in sorted(removed):
+            if item_id in items and items[item_id] != "major":
+                self.error(rel, f"지운 항목 `{item_id}`는 `major`다")
 
     def check_note(self, rel: str, path: Path) -> None:
         """새로 추가한 채팅 원본에 말한 사람이 있는지 본다. 기존 원본은 고칠 수 없으므로 검사하지 않는다."""
@@ -411,6 +653,10 @@ def main() -> int:
     if args.base:
         checker.check_changes(args.base)
 
+    # GitHub Actions에서는 경고를 PR 화면에 주석으로 띄운다
+    prefix = "::warning::" if os.environ.get("GITHUB_ACTIONS") == "true" else "warning: "
+    for message in checker.warnings:
+        print(f"{prefix}{message}")
     for message in checker.errors:
         print(f"error: {message}", file=sys.stderr)
     if checker.errors:
