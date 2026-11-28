@@ -42,7 +42,7 @@ ADR에서 위키에 넣는 부분(사용자에게 보이는 동작, 두 플랫�
 
 규칙: [procedures/ingest.md 흐름](../procedures/ingest.md#흐름)
 
-각자 PC의 Claude Code에서 ingest 스킬로 실행한다. 개인 구독을 쓰고, 서버와 API 키는 쓰지 않는다. 필요한 도구는 [필요 조건](plugin.md#필요-조건), 위키 clone 위치는 [작업 공간](plugin.md#작업-공간), 실행 모델은 [operations.md](operations.md)를 따른다.
+각자 PC의 LLM 도구(Claude Code, Codex, Pi)에서 ingest 스킬로 실행한다. 개인 구독을 쓰고, 서버와 API 키는 쓰지 않는다. 필요한 도구는 [필요 조건](plugin.md#필요-조건), 위키 clone 위치는 [작업 공간](plugin.md#작업-공간), 실행 모델은 [operations.md](operations.md)를 따른다.
 
 - 위키 clone 하나를 여러 세션이 같이 쓸 수 있다. 검증에서 한 세션이 다른 세션의 PR을 merge하려 한 적이 있다. 그래서 세션은 merge하지 않고 자기가 만든 브랜치와 PR만 다룬다. 시작할 때 default 브랜치가 아니면 멈추는 것도 다른 세션의 작업 브랜치 위에서 시작하지 않기 위해서다. PR 뒤 default 브랜치로 돌아가는 것은 다음 ingest가 이 검사에 걸리지 않게 하기 위해서다.
 - 커밋하지 않은 변경은 버리지 않고 stash로만 치운다. 검증에서 "알아서 치우고 진행해줘"에 세션이 `git checkout --`로 되돌려 복구할 수 없었다.

@@ -28,7 +28,7 @@ git clone https://github.com/JaesungLeee/gguk-wiki.git ~/gguk/gguk-wiki
 - 끝나면 레포별 상태와 작업 공간 위치 기록 결과를 보여 준다. 실패한 항목이 있으면 이유를 확인하고 다시 실행한다.
 - 작업용 clone이 따로 있어도 이 폴더에 별도로 clone한다.
 - Codex·Pi용 스킬을 `~/.agents/skills/`에 링크한다. 이 폴더에 같은 이름의 다른 스킬이 있으면 건드리지 않고 실패로 알린다.
-- 위키에 정보를 넣으려면(ingest) `gh`를 설치하고 `gh auth login`으로 로그인한다. 조회만 하면 필요 없다.
+- 위키에 정보를 넣거나(ingest) 기획서를 갱신하려면(proposal) `gh`를 설치하고 `gh auth login`으로 로그인한다. 조회만 하면 필요 없다.
 
 ## 플러그인 설치
 

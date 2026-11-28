@@ -450,12 +450,14 @@ class Checker:
                             self.error(where, f"`{item_id}`의 등급 `{grade}`는 major | minor | patch 중 하나여야 한다")
                         else:
                             grades.append(grade)
+            if i == 1 and current and current != (1, 0, 0):
+                self.error(where, f"첫 개정은 1.0.0이다. {version_str(current)}로 시작했다")
             if previous and current:
                 if current <= previous:
                     self.error(where, f"버전이 순서대로가 아니다: {version_str(previous)} 다음에 {version_str(current)}")
                 elif not grades:
                     self.error(where, "두 번째 개정부터는 `items`가 있어야 한다")
-                elif previous >= (1, 0, 0):
+                else:
                     expected = bump_version(previous, max(grades, key=GRADES.index))
                     if current != expected:
                         self.error(where, f"가장 큰 등급으로 올린 버전은 {version_str(expected)}다({version_str(previous)} 다음)")
@@ -595,8 +597,6 @@ class Checker:
             self.error(rel, f"바뀐 `{item_id}`의 등급이 개정 기록에 없다")
         for item_id in sorted(set(items) - touched):
             self.error(rel, f"바뀌지 않은 `{item_id}`에 등급을 매겼다")
-        if (parse_version(old_meta.get("version")) or (0, 0, 0)) < (1, 0, 0):
-            return  # 0.x는 큰 변경도 minor로 올린다
         for item_id in sorted(added):
             if items.get(item_id) not in ("minor", "major"):
                 self.error(rel, f"새 항목 `{item_id}`는 `minor` 이상이다")
