@@ -654,6 +654,30 @@ class ProposalTest(RepoTestCase):
         self.assertHasError(errors, "3장 기능 명세의 `SCR-002`가 2장 목표에 없다")
         self.assertHasError(errors, "본문에 코드 표기(백틱)가 있다")
 
+    def test_nested_item_heading_rejected(self):
+        """항목 안의 항목 제목은 sdd-android가 바깥 항목의 일부로 본다. 템플릿 규칙의 바깥 항목을 함께 보여 준다."""
+        body = proposal_body({"SCR-001": "방", "SCR-003": "공유", "SCR-004": "초대"})
+        body = body.replace("### [SCR-003]", "#### [SCR-003]").replace("### [SCR-004]", "##### [SCR-004]")
+        self.write_proposal(proposal_meta([FIRST]), body)
+        errors = self.repo.errors()
+        self.assertHasError(errors, "항목 `SCR-001` 안에 항목 제목 `SCR-003`이 있다. 항목은 같은 수준의 제목(### [ID])으로 나란히 둔다")
+        self.assertHasError(errors, "항목 `SCR-001` 안에 항목 제목 `SCR-004`이 있다")
+        self.assertEqual(len(errors), 2)
+
+    def test_nested_check_ignores_siblings_code_and_plain_headings(self):
+        """같은 수준의 항목, 코드 블록 안의 항목 제목, 항목이 아닌 더 깊은 제목은 중첩이 아니다.
+
+        백틱 코드 블록은 백틱 검사에 걸리므로 나누기만 본다.
+        """
+        fenced = proposal_body({"SCR-001": "방\n\n```\n#### [SCR-009] 예시\n```"})
+        self.assertEqual(wikilib.split_items(fenced).nested, [])
+        body = proposal_body({"SCR-001": "방\n\n#### 세부\n\n~~~\n#### [SCR-009] 예시\n~~~", "SCR-002": "보관"})
+        split = wikilib.split_items(body)
+        self.assertEqual(split.nested, [])
+        self.assertEqual(set(split.items), {"SCR-001", "SCR-002"})
+        self.write_proposal(proposal_meta([FIRST]), body)
+        self.assertEqual(self.repo.errors(), [])
+
     def test_sources_errors(self):
         self.repo.doc("wiki/decisions/2026-11-06-응답-형식.md", decision(title="응답 형식", kind="tech"))
         self.repo.write("raw/meetings/2026-11-06-회의.md", "회의\n")

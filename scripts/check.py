@@ -403,6 +403,9 @@ class Checker:
         split = wikilib.split_items(body)
         for item_id in sorted(set(split.duplicates)):
             self.error(rel, f"항목 `{item_id}`가 두 번 있다")
+        for outer_id, inner_id in split.nested:
+            self.error(rel, f"항목 `{outer_id}` 안에 항목 제목 `{inner_id}`이 있다. "
+                            "항목은 같은 수준의 제목(### [ID])으로 나란히 둔다")
         goals = set(GOAL_RE.findall(split.outside))
         for item_id in sorted(goals - set(split.items)):
             self.error(rel, f"2장 목표의 `{item_id}`가 3장 기능 명세에 없다")

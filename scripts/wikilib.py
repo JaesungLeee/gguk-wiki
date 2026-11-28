@@ -178,6 +178,7 @@ class ItemSplit:
     items: dict[str, str]
     outside: str
     duplicates: list[str]
+    nested: list[tuple[str, str]]
 
 
 def normalize_text(text: str) -> str:
@@ -193,11 +194,17 @@ def split_items(body: str) -> ItemSplit:
 
     항목 끝의 빈 줄과 구분선(`---`)은 항목 밖으로 친다. 장의 마지막 항목 뒤에 새 항목을 더해도
     앞 항목이 바뀐 것으로 계산되지 않게 하기 위해서다.
+
+    `nested`는 (바깥 항목, 안쪽 항목) ID 쌍이다. 템플릿 규칙대로 항목 제목부터 같은 수준이거나
+    더 높은 수준의 다음 제목 전까지를 바깥 항목으로 보고, 그 안의 더 깊은 항목 제목을 모은다.
+    sdd-android는 이 규칙대로 나누므로 안쪽 항목을 바깥 항목의 일부로 본다.
     """
     items: dict[str, str] = {}
     duplicates: list[str] = []
     outside: list[str] = []
+    nested: list[tuple[str, str]] = []
     current: dict | None = None
+    outer: dict | None = None
     fence: str | None = None
 
     def close() -> None:
@@ -227,6 +234,13 @@ def split_items(body: str) -> ItemSplit:
         if h:
             level = len(h.group(1))
             item = ITEM_HEADING_RE.match(h.group(2).strip())
+            if outer and level <= outer["level"]:
+                outer = None
+            if item:
+                if outer:
+                    nested.append((outer["id"], item.group(1)))
+                else:
+                    outer = {"id": item.group(1), "level": level}
             if current and (level <= current["level"] or item):
                 close()
                 current = None
@@ -236,4 +250,4 @@ def split_items(body: str) -> ItemSplit:
         (current["lines"] if current else outside).append(line)
     if current:
         close()
-    return ItemSplit(items, normalize_text("\n".join(outside)), duplicates)
+    return ItemSplit(items, normalize_text("\n".join(outside)), duplicates, nested)
